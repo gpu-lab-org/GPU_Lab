@@ -1,9 +1,22 @@
+
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 #include "header.hpp"
+
+
+#include <Core/Assert.hpp>
+#include <Core/Time.hpp>
+#include <Core/Image.hpp>
+#include <OpenCL/cl-patched.hpp>
+#include <OpenCL/Program.hpp>
+#include <OpenCL/Event.hpp>
+#include <OpenCL/Device.hpp>
+
+#include <clSPARSE.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -15,6 +28,19 @@ using namespace cv;
 
 #define ROUND_UINT(d) ( (unsigned int) ((d) + ((d) > 0 ? 0.5 : -0.5)) )
 
+//=======================================================================
+//
+// GLOBAL VARIABLES
+//
+//=======================================================================
+cl::Program program;
+std::vector<cl::Platform> platforms;
+
+//=======================================================================
+//
+// MOTION MAT FUNC
+//
+//=======================================================================
 void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, bool clockwise)
 {
 
@@ -80,8 +106,17 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 }
 
 
+//=======================================================================
+//
+// D __ MATRIX FUNC
+//
+//=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
+
+		// Create a kernel object
+	cl::Kernel mandelbrotKernel(program, "mandelbrotKernel");
+
 	int dim_srcvec = Src.rows * Src.cols;
     int dim_dstvec = Dest.rows * Dest.cols;
 
@@ -106,6 +141,12 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 	return _Dmatrix;
 }
 
+
+//=======================================================================
+//
+// H __ MATRIX
+//
+//=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
 
@@ -152,6 +193,12 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 	return _Hmatrix;
 }
 
+
+//=======================================================================
+//
+// M__MATRIX
+//
+//=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
 	int dim_dstvec = Dest.rows * Dest.cols;
@@ -187,6 +234,11 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 }
 
 
+//=======================================================================
+//
+// COMPOSE SYSTEM MATRIX FUNC
+//
+//=======================================================================
 Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& DMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &HMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &MMatrix)
 {
 
@@ -198,12 +250,12 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
     Eigen::SparseMatrix<float,Eigen::RowMajor, int> _DHF(dim_srcvec, dim_dstvec);
 
     DMatrix = Dmatrix(Src, Dest, rfactor);
-    HMatrix = Hmatrix(Dest, kernel);
-    MMatrix = Mmatrix(Dest, delta.x, delta.y);
+    //HMatrix = Hmatrix(Dest, kernel);
+    //MMatrix = Mmatrix(Dest, delta.x, delta.y);
 
-    _DHF = DMatrix * (HMatrix * MMatrix);
+    //_DHF = DMatrix * (HMatrix * MMatrix);
 
-    _DHF.makeCompressed();
+    //_DHF.makeCompressed();
 
     return _DHF;
 }
@@ -279,29 +331,81 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 
 	AT2 = A2.transpose();
 
-	viennacl::compressed_matrix<float>tmp_vcl(A.rows(), A.cols(), A.nonZeros());
-	viennacl::compressed_matrix<float>tmp_vclT(AT.rows(), AT.cols(), AT.nonZeros());
+	// viennacl::compressed_matrix<float>tmp_vcl(A.rows(), A.cols(), A.nonZeros());
+	// viennacl::compressed_matrix<float>tmp_vclT(AT.rows(), AT.cols(), AT.nonZeros());
 
-	viennacl::copy(A, tmp_vcl);
-	viennacl::copy(AT, tmp_vclT);
+	// viennacl::copy(A, tmp_vcl);
+	// viennacl::copy(AT, tmp_vclT);
 
-	DHF.push_back(tmp_vcl);
-	DHFT.push_back(tmp_vclT);
+	// DHF.push_back(tmp_vcl);
+	// DHFT.push_back(tmp_vclT);
 
-	viennacl::copy(A2, tmp_vcl);
-	viennacl::copy(AT2, tmp_vclT);
+	// viennacl::copy(A2, tmp_vcl);
+	// viennacl::copy(AT2, tmp_vclT);
 
-	DHF2.push_back(tmp_vcl);
-	DHFT2.push_back(tmp_vclT);
+	// DHF2.push_back(tmp_vcl);
+	// DHFT2.push_back(tmp_vclT);
 
 
 }
 
-
+//=======================================================================
+//
+// MAIN
+//
+//=======================================================================
 int main(int argc, char** argv)
 {
 
-    size_t image_count = 4;// M
+	// ===========================================================
+	// Initialization of the GPU
+	//
+	//============================================================
+	
+	cl::Platform::get(&platforms);
+	if (platforms.size() == 0) {
+		std::cerr << "No platforms found" << std::endl;
+		return 1;
+	}
+	int platformId = 0;
+	size_t i;
+	for (i = 0; i < platforms.size(); i++) {
+
+		//TODO///////////// PLEASE CHANGE THIS WHEN USING
+		if (platforms[i].getInfo<CL_PLATFORM_NAME>() == "Intel(R) CPU Runtime for OpenCL(TM) Applications") {
+			platformId = i;
+			break;
+		}
+	}
+
+	std::cout << platformId << "\n";
+	cl_context_properties prop[4] = { CL_CONTEXT_PLATFORM, (cl_context_properties) platforms[platformId] (), 0, 0 };
+	std::cout << "Using platform '" << platforms[platformId].getInfo<CL_PLATFORM_NAME>() << "' from '" << platforms[platformId].getInfo<CL_PLATFORM_VENDOR>() << "'" << std::endl;
+	cl::Context context(CL_DEVICE_TYPE_CPU, prop); //TODO///////////// PLEASE CHANGE THIS WHEN USING
+
+	//	Get a device of the context
+	int deviceNr = argc < 2 ? 1 : atoi(argv[1]);
+	std::cout << "Using device " << deviceNr << " / " << context.getInfo<CL_CONTEXT_DEVICES>().size() << std::endl;
+	ASSERT (deviceNr > 0);
+	ASSERT ((size_t) deviceNr <= context.getInfo<CL_CONTEXT_DEVICES>().size());
+	cl::Device device = context.getInfo<CL_CONTEXT_DEVICES>()[deviceNr - 1];
+	std::vector<cl::Device> devices;
+	devices.push_back(device);
+	OpenCL::printDeviceInfo(std::cout, device);
+
+	//	Create a command queue
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	//*******************************************************************
+
+	// Load the source code
+	program = OpenCL::loadProgramSource(context, "Kernel.cl");
+	// Compile the source code. This is similar to program.build(devices) but will print more detailed error messages
+	OpenCL::buildProgram(program, devices);
+
+	//********************************************************************
+
+    size_t image_count = 1;// M //TODO///////////// PLEASE CHANGE THIS WHEN USING
     int rfactor = 2;//magnification factor
     float psfWidth = 3;
 

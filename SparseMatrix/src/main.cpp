@@ -16,7 +16,9 @@
 #include <OpenCL/Event.hpp>
 #include <OpenCL/Device.hpp>
 
-#include <clSPARSE.h>
+#include <../../newtest/clSPARSE-package/include/clSPARSE.h>
+// PLEASE CHANGE THIS PATH ACCORDING TO YOUR SYSTEM
+// HAVE TO MAKE SUBSEQUENT CHANGES IN THE MAKEFILE AS WELL
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -35,7 +37,7 @@ using namespace cv;
 //=======================================================================
 cl::Program program;
 std::vector<cl::Platform> platforms;
-
+cl::CommandQueue queue; //TODO This thing goes here
 //=======================================================================
 //
 // MOTION MAT FUNC
@@ -113,13 +115,23 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
+	// Make space in the buffer
 
-		// Create a kernel object
-	cl::Kernel mandelbrotKernel(program, "mandelbrotKernel");
+	// Write Values in the buffer
 
-	int dim_srcvec = Src.rows * Src.cols;
-    int dim_dstvec = Dest.rows * Dest.cols;
+	// Create a kernel object
+	//cl::Kernel SuperAwesome_D_Kernel(program, "SuperAwesome_D_Matrix");
 
+	// Set the argument values
+	//SuperAwesome_D_Kernel.setArg<cl_int>(0,Src.rows * Src.cols);
+	//SuperAwesome_D_Kernel.setArg<cl_int>(1, Dest.rows * Dest.cols);
+
+	// Start the buffer object	
+	//  queue.enqueueNDRangeKernel  ///TODO Start the buffer object
+	
+	// Read values from the buffer
+	int dim_srcvec =  Src.rows*Src.cols;
+	int dim_dstvec = Dest.rows*Dest.cols;
 	Eigen::SparseMatrix<float,Eigen::RowMajor, int> _Dmatrix(dim_srcvec, dim_dstvec);
 	for (int i = 0; i < Src.rows; i++)
 	{
@@ -138,6 +150,16 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 		}
 	}
 
+	//Eigen::SparseMatrix<double>::InnerIterator it(_Dmatrix,k);
+//	for (int k=0; k<_Dmatrix.outerSize(); ++k)
+//	{ 	
+//	 for (SparseMatrix<double>::InnerIterator it(_Dmatrix,k); it; ++it)
+//  	{
+    	//	it.value();
+    //		it.row();   // row index
+  //  		it.col();   // col index (here it is equal to k)
+//	  }
+//	}
 	return _Dmatrix;
 }
 
@@ -149,6 +171,9 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
+
+	// Create a kernel object
+	cl::Kernel SuperAwesome_H_Kernel(program, "SuperAwesome_H_Matrix");
 
     int dim_dstvec = Dest.rows * Dest.cols;
 
@@ -201,10 +226,13 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
+	// Create a kernel object
+	cl::Kernel SuperAwesome_M_Kernel(program, "SuperAwesome_M_Matrix");
+	std::cout << "DeltaX - " << deltaX << "--DeltaY - " << deltaY << "\n";
 	int dim_dstvec = Dest.rows * Dest.cols;
 
 	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Mmatrix(dim_dstvec, dim_dstvec);
-
+	std::cout << Dest.rows << " " << Dest.cols;
 	for (int i = 0; i < Dest.rows; i++)
 	{
 		for(int j = 0; j < Dest.cols; j++)
@@ -216,20 +244,40 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 				int neighborUR = (i+std::floor(deltaY))*Dest.cols + (j+std::floor(deltaX)+1);
 				int neighborBR = (i+std::floor(deltaY)+1)*Dest.cols + (j+std::floor(deltaX)+1);
 				int neighborBL = (i+std::floor(deltaY)+1)*Dest.cols + (j+std::floor(deltaX));
-
-				if(neighborUL >= 0 && neighborUL < dim_dstvec)
+			//	std::cout << neighborUL << "-"<< neighborUR << "-" << neighborBR << "-" << neighborBL;
+				if(neighborUL >= 0 && neighborUL < dim_dstvec) {
+			//		std::cout << "--1";
 					_Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
-				if(neighborUR >= 0 && neighborUR < dim_dstvec)
-					_Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX)));
-				if(neighborBR >= 0 && neighborBR < dim_dstvec)
+				}
+				if(neighborUR >= 0 && neighborUR < dim_dstvec) {
+			//		std::cout << "--2";
+					_Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX))); 
+				}
+				if(neighborBR >= 0 && neighborBR < dim_dstvec) {
+			//		std::cout << "--3";		
 					_Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
-				if(neighborBL >= 0 && neighborBL < dim_dstvec)
-					_Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
+				}		
+				if(neighborBL >= 0 && neighborBL < dim_dstvec) {
+			//		std::cout << "--4";		
+				_Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
+				}
+			//	std::cout << "\n";
 			}
-
 		}
 	}
 
+	int k;
+	for (k=0; k<_Mmatrix.outerSize(); ++k)
+	{ 	
+		 for (Eigen::SparseMatrix<float, Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
+  		{
+			std::cout << it.value() << "-(" << it.row() << "," << it.col() << ")";
+    		
+    		   // row index
+    		   // col index (here it is equal to k)
+		  }
+		std::cout << "\n";
+	}
 	return _Mmatrix;
 }
 
@@ -251,7 +299,7 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 
     DMatrix = Dmatrix(Src, Dest, rfactor);
     //HMatrix = Hmatrix(Dest, kernel);
-    //MMatrix = Mmatrix(Dest, delta.x, delta.y);
+    MMatrix = Mmatrix(Dest, delta.x, delta.y);
 
     //_DHF = DMatrix * (HMatrix * MMatrix);
 
@@ -394,7 +442,7 @@ int main(int argc, char** argv)
 	OpenCL::printDeviceInfo(std::cout, device);
 
 	//	Create a command queue
-	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+	queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE); //TODO Please change this to global variable
 
 	//*******************************************************************
 
@@ -445,7 +493,6 @@ int main(int argc, char** argv)
 
 	dest = cv::Mat(Src[0].rows * rfactor, Src[0].cols * rfactor, CV_16UC1);
 	cv::resize(Src[0], dest, dest.size(), 0, 0, INTER_CUBIC);
-
 
 
     /***** Generate Matrices A = DHF, inverse A = DHFT and B = DHF2, invere B = DHFT2 ******/

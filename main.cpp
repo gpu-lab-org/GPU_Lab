@@ -1,5 +1,14 @@
 
+/*
 
+//TODO Clean up the code
+//TODO Make the buffers common or dealloc buffers after usage
+//TODO Send and get back H matrix
+//TODO Timing analysis and comparision
+//TODO Write MATRIX in files and compare GPU result with CPU result using diff command
+//TODO Add as many comments as possible to make code readable
+
+*/
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -16,9 +25,7 @@
 #include <OpenCL/Event.hpp>
 #include <OpenCL/Device.hpp>
 
-#include <../../newtest/clSPARSE-package/include/clSPARSE.h>
-// PLEASE CHANGE THIS PATH ACCORDING TO YOUR SYSTEM
-// HAVE TO MAKE SUBSEQUENT CHANGES IN THE MAKEFILE AS WELL
+#include </home/dineshbi/Downloads/Muddasser/clSPARSE_lib/clSPARSE-package/include/clSPARSE.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -37,7 +44,8 @@ using namespace cv;
 //=======================================================================
 cl::Program program;
 std::vector<cl::Platform> platforms;
-cl::CommandQueue queue; //TODO This thing goes here
+cl::Context context;
+cl::CommandQueue queue;
 //=======================================================================
 //
 // MOTION MAT FUNC
@@ -115,51 +123,106 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
-	// Make space in the buffer
+    Eigen::SparseMatrix<float,Eigen::RowMajor, int> _Dmatrix(Src.rows*Src.cols, Dest.rows*Dest.cols);
 
-	// Write Values in the buffer
+    std::size_t wgSize = 16;
 
-	// Create a kernel object
-	//cl::Kernel SuperAwesome_D_Kernel(program, "SuperAwesome_D_Matrix");
+    //TODO clean 
+    std::size_t count  = Src.rows * Src.cols*4;
+    std::size_t size   = count *sizeof (float);
+    std::vector<float> h_GpuV (count);
+    std::vector<int> h_GpuC (count);
+    std::vector<int> h_GpuR (count);
+   
+    // Create buffer 
+    cl::Buffer NZ_Rows(context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_values(context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_Columns(context,CL_MEM_READ_WRITE,size);
 
-	// Set the argument values
-	//SuperAwesome_D_Kernel.setArg<cl_int>(0,Src.rows * Src.cols);
-	//SuperAwesome_D_Kernel.setArg<cl_int>(1, Dest.rows * Dest.cols);
+    //initialization
+    memset(h_GpuR.data(), 0, size);
+    memset(h_GpuV.data(), 0, size);
+    memset(h_GpuC.data(), 0, size);
+	queue.enqueueWriteBuffer(NZ_Rows, true, 0, size, h_GpuR.data());
+    queue.enqueueWriteBuffer(NZ_values, true, 0, size, h_GpuV.data());
+    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data());
 
-	// Start the buffer object	
-	//  queue.enqueueNDRangeKernel  ///TODO Start the buffer object
-	
-	// Read values from the buffer
-	int dim_srcvec =  Src.rows*Src.cols;
-	int dim_dstvec = Dest.rows*Dest.cols;
-	Eigen::SparseMatrix<float,Eigen::RowMajor, int> _Dmatrix(dim_srcvec, dim_dstvec);
-	for (int i = 0; i < Src.rows; i++)
-	{
-		for (int j = 0; j< Src.cols; j++)
-		{
-			int LRindex = i*Src.cols + j;
-			for (int m = rfactor*i; m < (i+1)*rfactor; m++)
-			{
-				for (int n = rfactor*j; n < (j+1)*rfactor; n++)
-				{
-					int HRindex = m*Dest.cols + n;
-					_Dmatrix.coeffRef(LRindex,HRindex) = 1.0/rfactor/rfactor;
-					//std::cout<<"_Dmatrix.coeffRef(LRindex,HRindex) = "<<1.0/rfactor/rfactor<<", rfactor = "<<rfactor<<std::endl;
-				}
-			}
-		}
-	}
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_D_kernel(program, "SuperAwesome_D_Matrix");
 
-	//Eigen::SparseMatrix<double>::InnerIterator it(_Dmatrix,k);
-//	for (int k=0; k<_Dmatrix.outerSize(); ++k)
-//	{ 	
-//	 for (SparseMatrix<double>::InnerIterator it(_Dmatrix,k); it; ++it)
-//  	{
-    	//	it.value();
-    //		it.row();   // row index
-  //  		it.col();   // col index (here it is equal to k)
-//	  }
-//	}
+    //kernel arguments
+    SuperAwesome_D_kernel.setArg<cl_int>(0,Src.cols);
+	SuperAwesome_D_kernel.setArg<cl_int>(1,Dest.cols);
+    SuperAwesome_D_kernel.setArg<cl_float>(2,rfactor); 
+    SuperAwesome_D_kernel.setArg<cl::Buffer>(3,NZ_Rows);
+    SuperAwesome_D_kernel.setArg<cl::Buffer>(4,NZ_values);    
+    SuperAwesome_D_kernel.setArg<cl::Buffer>(5,NZ_Columns);
+
+    //launch the kernel
+    queue.enqueueNDRangeKernel(SuperAwesome_D_kernel, 0,cl::NDRange(Src.rows, Src.cols),cl::NDRange(wgSize, wgSize), NULL, NULL);
+    
+
+    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,NULL);
+
+    int k = 0;
+    /*for (int i = 0; i < count; i++)
+    {
+
+            std::cout << "(" << h_GpuR[i] << "," << h_GpuC[i] <<")" << "-->" << h_GpuV[i];
+            k++;
+            if (k==4)
+            {
+                std::cout << "\n";
+                k=0;
+            }
+    } */
+
+  /*  int prev_row = h_GpuR[0];
+    int j=1;
+    OuterStart[0] = 0;
+    int i;
+   for (i =0; i < count; i++)
+    {
+        if (h_GpuR[i] > prev_row)
+        {
+           OuterStart[j] =i;
+           j++;     
+        }
+        prev_row = h_GpuR[i];
+    }
+    OuterStart[j] = i; */
+
+    /*for ( int k =0; k<=16385; k++)
+    {
+        std::cout << OuterStart[k] << "\n" ;
+
+    } */
+
+    typedef Eigen::Triplet<float> T;
+    std::vector<T> tripletList;
+    tripletList.reserve(count);
+    for(k=0; k< count; k++ )
+    {
+    // Put the values on the stack        
+        tripletList.push_back(T(h_GpuR[k],h_GpuC[k],h_GpuV[k])); 
+    }
+ 
+    // Populate the Sparse MAtrix
+    _Dmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
+    
+
+    /*for (k=0; k<_Dmatrix.outerSize(); ++k)
+    {    
+    for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Dmatrix,k); it; ++it)
+      {
+            std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+
+       }
+        std::cout << "\n";
+    } */
+
 	return _Dmatrix;
 }
 
@@ -171,9 +234,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
-
-	// Create a kernel object
-	cl::Kernel SuperAwesome_H_Kernel(program, "SuperAwesome_H_Matrix");
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_H_Matrix(program, "SuperAwesome_H_Matrix");
 
     int dim_dstvec = Dest.rows * Dest.cols;
 
@@ -226,58 +288,95 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
-	// Create a kernel object
-	cl::Kernel SuperAwesome_M_Kernel(program, "SuperAwesome_M_Matrix");
-	std::cout << "DeltaX - " << deltaX << "--DeltaY - " << deltaY << "\n";
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_M_Matrix(program, "SuperAwesome_M_Matrix");
+
 	int dim_dstvec = Dest.rows * Dest.cols;
 
 	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Mmatrix(dim_dstvec, dim_dstvec);
-	std::cout << Dest.rows << " " << Dest.cols;
-	for (int i = 0; i < Dest.rows; i++)
-	{
-		for(int j = 0; j < Dest.cols; j++)
-		{
-			if(i < (Dest.rows-std::floor(deltaY)) && j< (Dest.cols-std::floor(deltaX)) && (i+std::floor(deltaY) >= 0) && (j+std::floor(deltaX) >= 0))
-			{
-				int index = i*Dest.cols + j;
-				int neighborUL = (i+std::floor(deltaY))*Dest.cols + (j+std::floor(deltaX));
-				int neighborUR = (i+std::floor(deltaY))*Dest.cols + (j+std::floor(deltaX)+1);
-				int neighborBR = (i+std::floor(deltaY)+1)*Dest.cols + (j+std::floor(deltaX)+1);
-				int neighborBL = (i+std::floor(deltaY)+1)*Dest.cols + (j+std::floor(deltaX));
-			//	std::cout << neighborUL << "-"<< neighborUR << "-" << neighborBR << "-" << neighborBL;
-				if(neighborUL >= 0 && neighborUL < dim_dstvec) {
-			//		std::cout << "--1";
-					_Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
-				}
-				if(neighborUR >= 0 && neighborUR < dim_dstvec) {
-			//		std::cout << "--2";
-					_Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX))); 
-				}
-				if(neighborBR >= 0 && neighborBR < dim_dstvec) {
-			//		std::cout << "--3";		
-					_Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
-				}		
-				if(neighborBL >= 0 && neighborBL < dim_dstvec) {
-			//		std::cout << "--4";		
-				_Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
-				}
-			//	std::cout << "\n";
-			}
-		}
-	}
 
-	int k;
-	for (k=0; k<_Mmatrix.outerSize(); ++k)
-	{ 	
-		 for (Eigen::SparseMatrix<float, Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
-  		{
-			std::cout << it.value() << "-(" << it.row() << "," << it.col() << ")";
-    		
-    		   // row index
-    		   // col index (here it is equal to k)
-		  }
-		std::cout << "\n";
-	}
+    //-------------------------------
+    std::size_t wgSize = 16;
+
+    //TODO clean up the code
+    // TODO BUffer sizes etc
+    std::size_t count  = Dest.rows * (Dest.cols*4);
+    std::size_t size   = count *sizeof (float);
+    std::vector<float> h_GpuV (count);
+    std::vector<int> h_GpuC (count);
+    std::vector<int> h_GpuR (count);
+   
+    // Create buffer 
+    cl::Buffer NZ_Rows(context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_values(context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_Columns(context,CL_MEM_READ_WRITE,size);
+
+    //initialization
+    memset(h_GpuR.data(), 0, size);
+    memset(h_GpuV.data(), 0, size);
+    memset(h_GpuC.data(), 0, size);
+	queue.enqueueWriteBuffer(NZ_Rows, true, 0, size, h_GpuR.data());
+    queue.enqueueWriteBuffer(NZ_values, true, 0, size, h_GpuV.data());
+    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data());
+
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_M_kernel(program, "SuperAwesome_M_Matrix");
+
+    //kernel arguments
+    SuperAwesome_M_kernel.setArg<cl_int>(0,Dest.rows);
+	SuperAwesome_M_kernel.setArg<cl_int>(1,Dest.cols);
+    SuperAwesome_M_kernel.setArg<cl_float>(2,deltaX); 
+    SuperAwesome_M_kernel.setArg<cl_float>(3,deltaY);
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(4,NZ_Rows);
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(5,NZ_values);    
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(6,NZ_Columns);
+    SuperAwesome_M_kernel.setArg<cl_int>(7,dim_dstvec);
+
+    //launch the kernel
+    queue.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0,cl::NDRange(Dest.rows, Dest.cols),cl::NDRange(wgSize, wgSize), NULL, NULL);
+    
+
+    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,NULL);
+
+    //--------------------------------
+    /*int k = 0;
+    for (int i = 0; i < count; i++)
+    {
+
+            std::cout << "(" << h_GpuR[i] << "," << h_GpuC[i] <<")" << "-->" << h_GpuV[i];
+            k++;
+            if (k==Dest.cols)
+            {
+                std::cout << "\n";
+                k=0;
+            }
+    } */
+    typedef Eigen::Triplet<float> T;
+    std::vector<T> tripletList;
+    tripletList.reserve(count);
+    int k;
+    for(k=0; k< count; k++ )
+    {
+    // Put the values on the stack        
+        tripletList.push_back(T(h_GpuR[k],h_GpuC[k],h_GpuV[k])); 
+    }
+ 
+    // Populate the Sparse MAtrix
+    _Mmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
+    
+
+    for (k=0; k<_Mmatrix.outerSize(); ++k)
+    {    
+    for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
+      {
+            std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+
+       }
+        std::cout << "\n";
+    }
+
 	return _Mmatrix;
 }
 
@@ -418,9 +517,7 @@ int main(int argc, char** argv)
 	int platformId = 0;
 	size_t i;
 	for (i = 0; i < platforms.size(); i++) {
-
-		//TODO///////////// PLEASE CHANGE THIS WHEN USING
-		if (platforms[i].getInfo<CL_PLATFORM_NAME>() == "Intel(R) CPU Runtime for OpenCL(TM) Applications") {
+		if (platforms[i].getInfo<CL_PLATFORM_NAME>() == "AMD Accelerated Parallel Processing") {
 			platformId = i;
 			break;
 		}
@@ -429,8 +526,8 @@ int main(int argc, char** argv)
 	std::cout << platformId << "\n";
 	cl_context_properties prop[4] = { CL_CONTEXT_PLATFORM, (cl_context_properties) platforms[platformId] (), 0, 0 };
 	std::cout << "Using platform '" << platforms[platformId].getInfo<CL_PLATFORM_NAME>() << "' from '" << platforms[platformId].getInfo<CL_PLATFORM_VENDOR>() << "'" << std::endl;
-	cl::Context context(CL_DEVICE_TYPE_CPU, prop); //TODO///////////// PLEASE CHANGE THIS WHEN USING
-
+	
+    context = cl::Context(CL_DEVICE_TYPE_GPU, prop);
 	//	Get a device of the context
 	int deviceNr = argc < 2 ? 1 : atoi(argv[1]);
 	std::cout << "Using device " << deviceNr << " / " << context.getInfo<CL_CONTEXT_DEVICES>().size() << std::endl;
@@ -442,7 +539,7 @@ int main(int argc, char** argv)
 	OpenCL::printDeviceInfo(std::cout, device);
 
 	//	Create a command queue
-	queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE); //TODO Please change this to global variable
+	queue = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
 	//*******************************************************************
 
@@ -484,6 +581,7 @@ int main(int argc, char** argv)
     for (size_t i = 0;i < image_count;i++)
     {
         Src[i] = cv::imread("../Images/Cameraman/LR"+ boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+     
         
 	if(! Src[i].data)
             std::cerr<<"No files can be found!"<<std::endl;
@@ -493,6 +591,7 @@ int main(int argc, char** argv)
 
 	dest = cv::Mat(Src[0].rows * rfactor, Src[0].cols * rfactor, CV_16UC1);
 	cv::resize(Src[0], dest, dest.size(), 0, 0, INTER_CUBIC);
+
 
 
     /***** Generate Matrices A = DHF, inverse A = DHFT and B = DHF2, invere B = DHFT2 ******/

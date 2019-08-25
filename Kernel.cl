@@ -31,61 +31,7 @@ __kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__
 
 }
 
-__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global float* NZ_values, __global int* NZ_Rows, __global int* NZ_Columns) {
-
-/*
-    size_t i = get_global_id(0);                                    // the i'th row
-	size_t j = get_global_id(1);                                    // the j'th column
-    size_t Dest_rows = get_global_size(0);                          // total number of rows in Dest
-    size_t Dest_cols = get_global_size(1);                          // total number of columns in Dest
-
-    // Total buffer size for checking bounds
-    dim_dstvec = Dest_rows * Dest_cols;
-
-    // Corresponding row of H-Matrix 
-    index = i*Dest_cols + j;
-
-    // Row indexing Offset to handle matrix to buffer representation
-    row_offset = index * dim_dstvec;
-
-    // Set the corresponding row elements
-	unsigned int UL = (i-1)*Dest_cols + (j-1);
-	if (i-1 >= 0 && j-1 >= 0 && UL < dim_dstvec)
-        NZ_values(row_offset + UL) = gauss_kernel[0];
-        NZ_Rows(row_offset + UL) = index;
-        NZ_Columns(row_offset + UL) = 
-
-	unsigned int UM = (i-1)*Dest_cols + j;
-	if (i-1 >= 0 && UM < dim_dstvec)
-		NZ_values(row_offset + UM) = gauss_kernel[1];
-
-	unsigned int UR = (i-1)*Dest_cols + (j+1);
-	if (i-1 >= 0 && j+1 < Dest_cols && UR < dim_dstvec)
-		NZ_values(row_offset + UR) = gauss_kernel[2];
-
-	unsigned int ML = i*Dest_cols + (j-1);
-	if (j-1 >= 0 && ML < dim_dstvec)
-		NZ_values(row_offset + ML) = gauss_kernel[3];
-
-	unsigned int MR = i*Dest_cols + (j+1);
-	if (j+1 < Dest_cols && MR < dim_dstvec)
-		NZ_values(row_offset + MR) = gauss_kernel[5];
-
-	unsigned int BL = (i+1)*Dest_cols + (j-1);
-	if (j-1 >= 0 && i+1 < Dest.rows && BL < dim_dstvec)
-		NZ_values(row_offset + BL) = gauss_kernel[6];
-
-	unsigned int BM = (i+1)*Dest_cols + j;
-	if (i+1 < Dest.rows && BM < dim_dstvec)
-		NZ_values(row_offset + BM) = gauss_kernel[7];
-
-	unsigned int BR = (i+1)*Dest_cols + (j+1);
-	if (i+1 < Dest.rows && j+1 < Dest_cols && BR < dim_dstvec)
-		NZ_values(row_offset + BR) = gauss_kernel[8]);
-
-	NZ_values(row_offset + index) = gauss_kernel[9];
-
-*/
+__kernel void SuperAwesome_H_Matrix () {
 
 }
 

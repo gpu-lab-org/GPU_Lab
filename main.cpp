@@ -25,7 +25,7 @@
 #include <OpenCL/Event.hpp>
 #include <OpenCL/Device.hpp>
 
-#include <ClSPARSE/clSPARSE-package/include/clSPARSE.h>
+#include </home/dineshbi/Downloads/Muddasser/clSPARSE_lib/clSPARSE-package/include/clSPARSE.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -46,7 +46,6 @@ cl::Program program;
 std::vector<cl::Platform> platforms;
 cl::Context context;
 cl::CommandQueue queue;
-
 //=======================================================================
 //
 // MOTION MAT FUNC
@@ -198,7 +197,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     /*for ( int k =0; k<=16385; k++)
     {
         std::cout << OuterStart[k] << "\n" ;
-433
+
     } */
 
     typedef Eigen::Triplet<float> T;
@@ -213,17 +212,17 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     // Populate the Sparse MAtrix
     _Dmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
     
-/*
-    for (k=0; k<_Dmatrix.outerSize(); ++k)
+
+    /*for (k=0; k<_Dmatrix.outerSize(); ++k)
     {    
     for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Dmatrix,k); it; ++it)
       {
             std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
 
-      }
-      std::cout << "\n";
-    } 
-*/
+       }
+        std::cout << "\n";
+    } */
+
 	return _Dmatrix;
 }
 
@@ -232,92 +231,17 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 //
 // H __ MATRIX
 //
-//==========================433=============================================
+//=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_H_Matrix(program, "SuperAwesome_H_Matrix");
+
     int dim_dstvec = Dest.rows * Dest.cols;
 
 	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Hmatrix(dim_dstvec, dim_dstvec);
 
-/*
-    // kernel matrix to vector conversion (Size 3X3 matrix)
-    std::vector<float> vkernel(kernel.rows*kernel.cols);
-    if (kernel.isContinuous())
-        vkernel = kernel.data;
-    // Handling only in case memory non continuous in the opencv mat. Only fixed 9 executions
-    // Direct assignment much faster than use of nested for-loops, as matrix contains just 9 elements
-    else
-    {
-        vkernel[0] = kernel.at<float>(0,0);
-        vkernel[1] = kernel.at<float>(0,1);
-        vkernel[2] = kernel.at<float>(0,2);
-        vkernel[3] = kernel.at<float>(1,0);
-        vkernel[4] = kernel.at<float>(1,1);
-        vkernel[5] = kernel.at<float>(1,2);
-        vkernel[6] = kernel.at<float>(2,0);
-        vkernel[7] = kernel.at<float>(2,1);
-        vkernel[8] = kernel.at<float>(2,2);
-    }
 
-    //     
-    std::size_t wgSize = 16;
-
-    // Compute total buffer size to be allocated to V, C and R buffers   
-    std::size_t count  = Dest.rows * Dest.cols;    
-    std::size_t size   = count *sizeof (float);
-
-    // Allocate space for output data from GPU on the host
-    // TODO change the data type of the vector h_GpuR and h_GpuC, based on the Image pixel dimensions
-    std::vector<float> h_GpuV (count);
-    std::vector<unsigned int> h_GpuR (count);
-    std::vector<unsigned int> h_GpuC (count);
-
-    // Allocate space (buffers) for output data on the device 
-    cl::Buffer NZ_Values(context,CL_MEM_READ_WRITE,size);
-    cl::Buffer NZ_Rows(context,CL_MEM_READ_WRITE,size);
-    cl::Buffer NZ_Columns(context,CL_MEM_READ_WRITE,size);
-
-    // Initialize host memory to 0 (0 being useful to debug if errors in V)
-    memset(h_GpuV.data(), 0, size);
-    memset(h_GpuR.data(), 0, size);
-    memset(h_GpuC.data(), 0, size);
-
-    // Initialize device memory
-    queue.enqueueWriteBuffer(NZ_Values, true, 0, size, h_GpuV.data());
-	queue.enqueueWriteBuffer(433NZ_Rows, true, 0, size, h_GpuR.data());
-    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data());
-
-    // New kernel object for computation of H matrix
-	cl::Kernel SuperAwesome_H_kernel(program, "SuperAwesome_H_Matrix");
-
-    // Set kernel arguments as per required order of semantics
-    SuperAwesome_H_kernel.setArg<cl::Buffer>(0,vkernel);
-    SuperAwesome_H_kernel.setArg<cl::Buffer>(1,NZ_Values);   
-    SuperAwesome_H_kernel.setArg<cl::Buffer>(2,NZ_Rows); 
-    SuperAwesome_H_kernel.setArg<cl::Buffer>(3,NZ_Columns);
-
-    // Launch the kernel
-    queue.enqueueNDRangeKernel(SuperAwesome_H_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, NULL);
-
-    // Copy output data from device to host
-    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,NULL);
-    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,NULL);
-    queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,NULL);
-    
-    // Triplet to Eigen-Sparse Conversion
-    typedef Eigen::Triplet<float> T;
-    std::vector<T> tripletList;
-    tripletList.reserve(count);
-    for(k=0; k< count; k++ )
-    {
-        // Put the values on the stack        
-        tripletList.push_back(T(h_GpuR[k],h_GpuC[k],h_GpuV[k])); 
-    }
- 
-    // Populate the Sparse Matrix
-    _Hmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
-
-/*
 	for (int i = 0; i < Dest.rows; i++)
 	{
 		for (int j = 0; j< Dest.cols; j++)
@@ -353,8 +277,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 		}
 	}
 
-*/
-
 	return _Hmatrix;
 }
 
@@ -366,15 +288,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 //=======================================================================
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
-    // For timimg Analysis
-    cl::Event event_kernel;
-    cl::Event event_read1;
-    cl::Event event_read2;
-    cl::Event event_read3;
-    cl::Event event_write1;
-    cl::Event event_write2;
-    cl::Event event_write3;
-
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_M_Matrix(program, "SuperAwesome_M_Matrix");
 
@@ -402,9 +315,9 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     memset(h_GpuR.data(), 0, size);
     memset(h_GpuV.data(), 0, size);
     memset(h_GpuC.data(), 0, size);
-	queue.enqueueWriteBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,&event_write1);
-    queue.enqueueWriteBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,&event_write2);
-    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,&event_write3);
+	queue.enqueueWriteBuffer(NZ_Rows, true, 0, size, h_GpuR.data());
+    queue.enqueueWriteBuffer(NZ_values, true, 0, size, h_GpuV.data());
+    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data());
 
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_M_kernel(program, "SuperAwesome_M_Matrix");
@@ -420,35 +333,18 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     SuperAwesome_M_kernel.setArg<cl_int>(7,dim_dstvec);
 
     //launch the kernel
-    queue.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0,cl::NDRange(Dest.rows, Dest.cols),cl::NDRange(wgSize, wgSize), NULL, &event_kernel);
+    queue.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0,cl::NDRange(Dest.rows, Dest.cols),cl::NDRange(wgSize, wgSize), NULL, NULL);
     
 
-    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,&event_read1);
-    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,&event_read2);
-    queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,&event_read3);
-
-	Core::TimeSpan time1 = OpenCL::getElapsedTime(event_kernel);
-	Core::TimeSpan time2 = OpenCL::getElapsedTime(event_read1);
-	Core::TimeSpan time3 = OpenCL::getElapsedTime(event_read2);
-	Core::TimeSpan time4 = OpenCL::getElapsedTime(event_read3);
-	Core::TimeSpan time5 = OpenCL::getElapsedTime(event_write1);
-	Core::TimeSpan time6 = OpenCL::getElapsedTime(event_write2);
-	Core::TimeSpan time7 = OpenCL::getElapsedTime(event_write3);
-	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7;
-
-    std::cout <<"Kernel Time "<< time1 << std::endl;
-    std::cout <<"Read1 Time "<< time2 << std::endl;
-    std::cout <<"Read2 Time "<< time3 << std::endl;
-    std::cout <<"Read3 Time "<< time4 << std::endl;
-    std::cout <<"Write1 Time "<< time5 << std::endl;
-    std::cout <<"Write2 Time "<< time6 << std::endl;
-    std::cout <<"Write3 Time "<< time7 << std::endl;
-    std::cout <<"Total Time "<< timeGPU << std::endl;
+    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(),NULL,NULL);
+    queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,NULL);
 
     //--------------------------------
     /*int k = 0;
     for (int i = 0; i < count; i++)
     {
+
             std::cout << "(" << h_GpuR[i] << "," << h_GpuC[i] <<")" << "-->" << h_GpuV[i];
             k++;
             if (k==Dest.cols)
@@ -457,47 +353,29 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
                 k=0;
             }
     } */
-
-    // Populate the Sparse MAtrix
-
     typedef Eigen::Triplet<float> T;
     std::vector<T> tripletList;
     tripletList.reserve(count);
     int k;
-
-    // Timing Analysis
-    Core::TimeSpan time10 = Core::getCurrentTime();
     for(k=0; k< count; k++ )
     {
     // Put the values on the stack        
         tripletList.push_back(T(h_GpuR[k],h_GpuC[k],h_GpuV[k])); 
     }
-    Core::TimeSpan time11 = Core::getCurrentTime();
-
-	Core::TimeSpan timefor = time11 - time10;
-    std::cout << "Time taken to execute for loop - " << timefor << std::endl; 
-
-    // Timing Analysis
-    Core::TimeSpan time8 = Core::getCurrentTime();
+ 
     // Populate the Sparse MAtrix
     _Mmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
-    Core::TimeSpan time9 = Core::getCurrentTime();
+    
 
-	Core::TimeSpan timeTriplets = time9 - time8;
-    std::cout << "Time taken to execute timeTriplets - " << timeTriplets << std::endl;    
-
-
-/*
     for (k=0; k<_Mmatrix.outerSize(); ++k)
     {    
-        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
-        {
+    for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
+      {
             std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
 
-        }
+       }
         std::cout << "\n";
     }
-*/
 
 	return _Mmatrix;
 }
@@ -518,23 +396,9 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 
     Eigen::SparseMatrix<float,Eigen::RowMajor, int> _DHF(dim_srcvec, dim_dstvec);
 
-	// Do calculation on the host side
-	Core::TimeSpan time1 = Core::getCurrentTime();
     DMatrix = Dmatrix(Src, Dest, rfactor);
-    Core::TimeSpan time2 = Core::getCurrentTime();
-
-	Core::TimeSpan timed = time2 - time1;
-	std::cout << "Time taken to execute DMatrix - " << timed << std::endl;
-
     //HMatrix = Hmatrix(Dest, kernel);
-
-	// Do calculation on the host side
-	Core::TimeSpan time3 = Core::getCurrentTime();
     MMatrix = Mmatrix(Dest, delta.x, delta.y);
-    Core::TimeSpan time4 = Core::getCurrentTime();
-
-	Core::TimeSpan timem = time4 - time3;
-	std::cout << "Time taken to execute MMatrix - " << timem << std::endl;
 
     //_DHF = DMatrix * (HMatrix * MMatrix);
 
@@ -542,6 +406,7 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 
     return _DHF;
 }
+
 
 void Normalization(Eigen::SparseMatrix<float, Eigen::RowMajor, int>& src, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& dst)
 {

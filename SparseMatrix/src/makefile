@@ -7,6 +7,7 @@ ODIR=../Debug
 #LDIR =../lib/Core ../lib/Math ../lib/OpenCL ../lib ../lib/viennacl /usr/include/eigen3 /usr/include/opencv /usr/include/mpi /usr/include/x86_64-linux-gnu/5/include /usr/include/x86_64-linux-gnu
 
 # With lib path for ClSPARSE - Edit the path accordingly
+
 LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -L../lib//ClSPARSE/clSPARSE-package/lib64
 
 # Without lib path for ClSPARSE

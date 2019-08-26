@@ -393,8 +393,8 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 int main(int argc, char** argv)
 {
 
-    size_t image_count = 8;// M
-    int rfactor = 5;//magnification factor
+    size_t image_count = 4;// M
+    int rfactor = 2;//magnification factor
     float psfWidth = 3;
 
 

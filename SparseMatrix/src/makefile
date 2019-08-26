@@ -7,21 +7,20 @@ ODIR=../Debug
 #LDIR =../lib/Core ../lib/Math ../lib/OpenCL ../lib ../lib/viennacl /usr/include/eigen3 /usr/include/opencv /usr/include/mpi /usr/include/x86_64-linux-gnu/5/include /usr/include/x86_64-linux-gnu
 
 # With lib path for ClSPARSE - Edit the path accordingly
-
-LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -L../lib//ClSPARSE/clSPARSE-package/lib64
+#LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -L../lib/ClSPARSE/clSPARSE-package/lib64
 
 # Without lib path for ClSPARSE
-#LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu 
+LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu 
  
 
 # Version OpenCL 3.0 and below -lopencv_imgproc required
 #LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl
 
 # Version OpenCL 3.0 and above with -lclSPARSE
-LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl -lclSPARSE
+#LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl -lclSPARSE
 
 # Version OpenCL 3.0 and above without -lclSPARSE
-#LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl
+LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl
 
 PrePro = -D VIENNACL_WITH_OPENCL -D VIENNACL_WITH_EIGEN
 #PrePro = -D VIENNACL_WITH_OPENCL -D VIENNACL_WITH_EIGEN -D VIENNACL_DEBUG_ALL

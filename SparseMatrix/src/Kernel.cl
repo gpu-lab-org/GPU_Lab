@@ -4,7 +4,7 @@
 
 
 
-__kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns) {
+__kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__global float* NZ_values,__global int* NZ_Columns,__global int* NZ_Rows) {
 
     size_t i = get_global_id(0); // the Ith loop we removed
 	size_t j = get_global_id(1);  // the Jth loop we removed
@@ -27,67 +27,42 @@ __kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__
             k++;
 		}
 	}
-		
-
 }
 
-__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global float* NZ_values, __global int* NZ_Rows, __global int* NZ_Columns) {
+kernel void SuperAwesome_H_Matrix (int kernel_rows, int kernel_cols,int Dest_cols,int Dest_rows,int dim_dstvec,__global float* kernelgpu,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns) {
+	/*
 
-/*
-    size_t i = get_global_id(0);                                    // the i'th row
-	size_t j = get_global_id(1);                                    // the j'th column
-    size_t Dest_rows = get_global_size(0);                          // total number of rows in Dest
-    size_t Dest_cols = get_global_size(1);                          // total number of columns in Dest
+    int i = get_global_id(0); // the Ith loop we removed
+	int j = get_global_id(1);  // the Jth loop we removed
+    int countX = get_global_size(0); // The size of Ith loop
+	int radius_y = ((kernel_rows-1)/2);
+    int radius_x = ((kernel_cols-1)/2);
 
-    // Total buffer size for checking bounds
-    dim_dstvec = Dest_rows * Dest_cols;
-
-    // Corresponding row of H-Matrix 
-    index = i*Dest_cols + j;
-
-    // Row indexing Offset to handle matrix to buffer representation
-    row_offset = index * dim_dstvec;
-
-    // Set the corresponding row elements
-	unsigned int UL = (i-1)*Dest_cols + (j-1);
-	if (i-1 >= 0 && j-1 >= 0 && UL < dim_dstvec)
-        NZ_values(row_offset + UL) = gauss_kernel[0];
-        NZ_Rows(row_offset + UL) = index;
-        NZ_Columns(row_offset + UL) = 
-
-	unsigned int UM = (i-1)*Dest_cols + j;
-	if (i-1 >= 0 && UM < dim_dstvec)
-		NZ_values(row_offset + UM) = gauss_kernel[1];
-
-	unsigned int UR = (i-1)*Dest_cols + (j+1);
-	if (i-1 >= 0 && j+1 < Dest_cols && UR < dim_dstvec)
-		NZ_values(row_offset + UR) = gauss_kernel[2];
-
-	unsigned int ML = i*Dest_cols + (j-1);
-	if (j-1 >= 0 && ML < dim_dstvec)
-		NZ_values(row_offset + ML) = gauss_kernel[3];
-
-	unsigned int MR = i*Dest_cols + (j+1);
-	if (j+1 < Dest_cols && MR < dim_dstvec)
-		NZ_values(row_offset + MR) = gauss_kernel[5];
-
-	unsigned int BL = (i+1)*Dest_cols + (j-1);
-	if (j-1 >= 0 && i+1 < Dest.rows && BL < dim_dstvec)
-		NZ_values(row_offset + BL) = gauss_kernel[6];
-
-	unsigned int BM = (i+1)*Dest_cols + j;
-	if (i+1 < Dest.rows && BM < dim_dstvec)
-		NZ_values(row_offset + BM) = gauss_kernel[7];
-
-	unsigned int BR = (i+1)*Dest_cols + (j+1);
-	if (i+1 < Dest.rows && j+1 < Dest_cols && BR < dim_dstvec)
-		NZ_values(row_offset + BR) = gauss_kernel[8]);
-
-	NZ_values(row_offset + index) = gauss_kernel[9];
-
+	int k=0;
+	int index = i*Dest_cols + j;
+	for (int m = 0; m < kernel_rows; m++)
+	{
+		for (int n = 0; n < kernel_cols; n++)
+		{
+			int loc = (i-radius_y+m)*Dest_cols + (j-radius_x+n);
+			if ((i-radius_y+m >= 0)&& (i-radius_y+m < Dest_rows) && (j-radius_x+n >= 0) && (j-radius_x+n < Dest_cols) && (loc < dim_dstvec))
+               {
+                if (index <= 255 && index >=0)
+                {
+                    //_Hmatrix.coeffRef(index,loc) = kernel.at<float>(m,n);
+				    NZ_values[j*9 + i*countX*9+k ] = kernelgpu[m*kernel_cols +n]; 
+				    NZ_Rows[j*9+ i*countX*9+k ] = index;
+				    NZ_Columns[j*9 + i*countX*9+k] = loc;
+				    k++;
+                }
+               }
+				
+		}
+	}
 */
-
 }
+
+
 
 __kernel void SuperAwesome_M_Matrix (int dst_rows, int dst_cols,float deltaX,float deltaY,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns,int dim_dstvec) {
        

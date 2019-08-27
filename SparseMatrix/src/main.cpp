@@ -252,11 +252,11 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 
     //Test Vector
     std::vector<float> test_values1 (_Dmatrix_ClSPARSE.num_nonzeros);
-    memset(test_values1.data(), 0, _Dmatrix_ClSPARSE.num_nonzeros);
+    memset(test_values1.data(), 0, _Dmatrix_ClSPARSE.num_nonzeros * sizeof(float));
     ::clEnqueueReadBuffer(queue(), _Dmatrix_ClSPARSE.values,  true, 0, size, test_values1.data(), 0, NULL, NULL);
 
     std::vector<unsigned int> test_values2 (_Dmatrix_ClSPARSE.num_nonzeros);
-    memset(test_values2.data(), 0, _Dmatrix_ClSPARSE.num_nonzeros);
+    memset(test_values2.data(), 0, _Dmatrix_ClSPARSE.num_nonzeros* sizeof(cl_uint));
     ::clEnqueueReadBuffer(queue(), _Dmatrix_ClSPARSE.col_indices,  true, 0, size, test_values2.data(), 0, NULL, NULL);
 
     int k = 0;
@@ -339,16 +339,16 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 
     //Test Vector
     std::vector<float> test_valuesa (_Imatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesa.data(), 0, _Imatrix_ClSPARSE.num_nonzeros);
+    memset(test_valuesa.data(), 0, _Imatrix_ClSPARSE.num_nonzeros * sizeof(float));
     ::clEnqueueReadBuffer(queue(), _Imatrix_ClSPARSE.values,  true, 0, _Imatrix_ClSPARSE.num_nonzeros * sizeof(float), test_valuesa.data(), 0, NULL, NULL);
 
     std::vector<cl_uint> test_valuesb (_Imatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesb.data(), 0, _Imatrix_ClSPARSE.num_nonzeros);
+    memset(test_valuesb.data(), 0, _Imatrix_ClSPARSE.num_nonzeros * sizeof(cl_uint));
     ::clEnqueueReadBuffer(queue(), _Imatrix_ClSPARSE.col_indices,  true, 0, _Imatrix_ClSPARSE.num_nonzeros * sizeof(clsparseIdx_t) , test_valuesb.data(), 0, NULL, NULL);
 
     //Test Vector
     std::vector<cl_uint> test_valuesc (_Imatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesc.data(), 0, ( _Imatrix_ClSPARSE.num_rows + 1));
+    memset(test_valuesc.data(), 0, ( _Imatrix_ClSPARSE.num_rows + 1) * sizeof(cl_uint));
     ::clEnqueueReadBuffer(queue(), _Imatrix_ClSPARSE.row_pointer,  true, 0, (_Imatrix_ClSPARSE.num_rows + 1) * sizeof(clsparseIdx_t) , test_valuesc.data(), 0, NULL, NULL);
 
     k = 0;
@@ -405,15 +405,15 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 
     //Test Vector
     std::vector<float> test_valuesl (_Rmatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesl.data(), 0, _Rmatrix_ClSPARSE.num_nonzeros);
+    memset(test_valuesl.data(), 0, _Rmatrix_ClSPARSE.num_nonzeros * sizeof(float) );
     ::clEnqueueReadBuffer(queue(), _Rmatrix_ClSPARSE.values,  true, 0, size, test_valuesl.data(), 0, NULL, NULL);
 
     std::vector<unsigned int> test_valuesm (_Rmatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesm.data(), 0, _Rmatrix_ClSPARSE.num_nonzeros);
+    memset(test_valuesm.data(), 0, _Rmatrix_ClSPARSE.num_nonzeros * sizeof(cl_uint));
     ::clEnqueueReadBuffer(queue(), _Rmatrix_ClSPARSE.col_indices,  true, 0, size, test_valuesm.data(), 0, NULL, NULL);
 
     std::vector<cl_uint> test_valuesn (_Rmatrix_ClSPARSE.num_nonzeros);
-    memset(test_valuesn.data(), 0, ( _Rmatrix_ClSPARSE.num_rows + 1));
+    memset(test_valuesn.data(), 0, ( _Rmatrix_ClSPARSE.num_rows + 1)* sizeof(cl_uint));
     ::clEnqueueReadBuffer(queue(), _Rmatrix_ClSPARSE.row_pointer,  true, 0, (_Imatrix_ClSPARSE.num_rows + 1) * sizeof(clsparseIdx_t) , test_valuesn.data(), 0, NULL, NULL);
 
     k = 0;

@@ -25,6 +25,11 @@
 #include <OpenCL/Event.hpp>
 #include <OpenCL/Device.hpp>
 
+//ClSPARSE
+#include <ClSPARSE/clSPARSE-package/include/clSPARSE.h>
+#include <ClSPARSE/clSPARSE-package/include/clSPARSE-error.h>
+
+
 // ViennaCl includes
 #include "viennacl/vector.hpp"
 #include "viennacl/compressed_matrix.hpp"
@@ -131,167 +136,60 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
     Eigen::SparseMatrix<float,Eigen::RowMajor, int> _Dmatrix(Src.rows*Src.cols, Dest.rows*Dest.cols);
-    
-    unsigned int nnz = Src.rows * Src.cols * 4;
 
-    // Change viennacl context
-    viennacl::ocl::setup_context(0, context(), device(), queue());
-    viennacl::ocl::switch_context(0);
+    // Change viennacl context - Not required
+    // viennacl::ocl::setup_context(0, context(), device(), queue());
+    // viennacl::ocl::switch_context(0);
 
+    // Testing the context used
     std::cout << "Existing context: " << context() << std::endl;
     std::cout << "ViennaCL uses context: " << viennacl::ocl::current_context().handle().get() << std::endl;
 
-/*
-    clsparseStatus status = clsparseSetup();
-    if (status != clsparseSuccess)
-    {
-        std::cout << "Problem with executing clsparseSetup()" << std::endl;
-    }
-
-    // Create clSPARSE control object, is required to queue for kernel execution
-    clsparseCreateResult createResult = clsparseCreateControl( queue( ) );
-    CLSPARSE_V( createResult.status, "Failed to create clsparse control" );
-
-    // Define a SPARSE matrix
-    clsparseCsrMatrix _Dmatrix_ClSPARSE;
-    clsparseInitCsrMatrix(&_Dmatrix_ClSPARSE);
-
-    // Declaration of CSR matrix parameters
-    clsparseIdx_t nnz = Src.rows * Src.cols * 4;
-    clsparseIdx_t row = 16384;
-    clsparseIdx_t col = 65536;
-
-    // Initialised _Dmatrix parameters
-    _Dmatrix_ClSPARSE.num_nonzeros = nnz; 
-    _Dmatrix_ClSPARSE.num_rows = row; 
-    _Dmatrix_ClSPARSE.num_cols = col;
-*/
-
-    // Allocate memory for _Dmatrix CSR matrix
-    /*    
-    _Dmatrix_ClSPARSE.values = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                 _Dmatrix_ClSPARSE.num_nonzeros * sizeof( float ), NULL, NULL );
-
-    _Dmatrix_ClSPARSE.col_indices = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                     _Dmatrix_ClSPARSE.num_nonzeros * sizeof( clsparseIdx_t ), NULL, NULL );
-
-    _Dmatrix_ClSPARSE.row_pointer = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                     ( _Dmatrix_ClSPARSE.num_rows + 1 ) * sizeof( clsparseIdx_t ), NULL, NULL );
-
-
-    // Create meta data for the ClSPARSE
-    clsparseCsrMetaCreate( &_Dmatrix_ClSPARSE, createResult.control );
-*/
+    // Workgroup size
     std::size_t wgSize = 16;
-
-    //TODO clean 
-    std::size_t count  = Src.rows * Src.cols * 4;
+ 
+    // Total size of the Dmatrix
+	std::size_t dim_srcvec = Src.rows * Src.cols;
+    std::size_t dim_dstvec = Dest.rows * Dest.cols;
+    
+    // Optimal size of buffer i.e equal to number of non zero elements
+    std::size_t count = Src.rows * Src.cols * rfactor * rfactor;
     
     std::vector<cl_float>   h_GpuV (count);
     std::vector<cl_uint>    h_GpuC (count);
     std::vector<cl_uint>    h_GpuR (count);
    
     // Create buffer 
-    // Using opencl C cl_mem data structures
-
-    cl_mem NZ_values    = ::clCreateBuffer( context(), CL_MEM_READ_WRITE, count * sizeof(cl_float) , NULL, NULL);
-    cl_mem NZ_Columns   = ::clCreateBuffer( context(), CL_MEM_READ_WRITE, count * sizeof(cl_uint) , NULL, NULL);
-    cl_mem NZ_Rows      = ::clCreateBuffer( context(), CL_MEM_READ_WRITE, count * sizeof(cl_uint) , NULL, NULL);   
-
-    /*
-    // Using C++ Wrapper Implementated data structures
     cl::Buffer NZ_values(context,CL_MEM_READ_WRITE,size);
     cl::Buffer NZ_Columns(context,CL_MEM_READ_WRITE,size);
     cl::Buffer NZ_Rows(context,CL_MEM_READ_WRITE,size);
-    */
     
-    //initialization
+    // Initialization of host and device memory 
     memset(h_GpuV.data(), 0, count * sizeof(cl_float));
     memset(h_GpuC.data(), 0, count * sizeof(cl_uint));
     memset(h_GpuR.data(), 0, count * sizeof(cl_uint));
-
-    // Using opencl C based function calls
-
-    ::clEnqueueWriteBuffer(queue(), NZ_values,  true, 0, count * sizeof(cl_float),  h_GpuV.data(), 0, NULL, NULL);
-    ::clEnqueueWriteBuffer(queue(), NZ_Columns, true, 0, count * sizeof(cl_uint),   h_GpuC.data(), 0, NULL, NULL);
-    ::clEnqueueWriteBuffer(queue(), NZ_Rows,    true, 0, count * sizeof(cl_uint),   h_GpuR.data(), 0, NULL, NULL);
-
-    /*
-    // Using C++ Wrapper based function calls
-    queue.enqueueWriteBuffer(NZ_values, true, 0, size, h_GpuV.data());
-    queue.enqueueWriteBuffer(NZ_Columns, true, 0, size, h_GpuC.data());
-	queue.enqueueWriteBuffer(NZ_Rows, true, 0, size, h_GpuR.data());
-    */
-
-	//queue.enqueueWriteBuffer(_Dmatrix.values, true, 0, size, h_GpuV.data());
-    //queue.enqueueWriteBuffer(_Dmatrix.col_indices, true, 0, size, h_GpuC.data());
-    //queue.enqueueWriteBuffer(_Dmatrix.row_pointer, true, 0, size, h_GpuR.data());
+    queue.enqueueWriteBuffer(NZ_values,     true, 0, size, h_GpuV.data());
+    queue.enqueueWriteBuffer(NZ_Columns,    true, 0, size, h_GpuC.data());
+	queue.enqueueWriteBuffer(NZ_Rows,       true, 0, size, h_GpuR.data());
 
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_D_kernel(program, "SuperAwesome_D_Matrix");
-    //cl_kernel SuperAwesome_D_kernel = clCreateKernel(program, "SuperAwesome_D_Matrix", NULL);
 
-    //kernel arguments
-    /*
-    ::clSetKernelArg(SuperAwesome_D_kernel, 0, sizeof(cl_int), (void*)&Src.cols);
-    ::clSetKernelArg(SuperAwesome_D_kernel, 1, sizeof(cl_int), (void*)&Dest.cols);
-    ::clSetKernelArg(SuperAwesome_D_kernel, 2, sizeof(cl_float), (void*)&rfactor);
-    ::clSetKernelArg(SuperAwesome_D_kernel, 3, sizeof(cl_mem), (void*)&NZ_values);
-    ::clSetKernelArg(SuperAwesome_D_kernel, 4, sizeof(cl_mem), (void*)&NZ_Columns);
-    ::clSetKernelArg(SuperAwesome_D_kernel, 5, sizeof(cl_mem), (void*)&NZ_Rows);
-    */
-
-    SuperAwesome_D_kernel.setArg<cl_int>    (0,Src.cols);
-	SuperAwesome_D_kernel.setArg<cl_int>    (1,Dest.cols);
-    SuperAwesome_D_kernel.setArg<cl_float>  (2,rfactor); 
-    SuperAwesome_D_kernel.setArg<cl_mem>    (3,NZ_values);   
-    SuperAwesome_D_kernel.setArg<cl_mem>    (4,NZ_Columns);
-    SuperAwesome_D_kernel.setArg<cl_mem>    (5,NZ_Rows); 
-
-    //launch the kernel
+    // Set kernel arguments
+    SuperAwesome_D_Matrix.setArg<cl_int>    (0, Src.cols);
+    SuperAwesome_D_Matrix.setArg<cl_int>    (1, Dest.cols);
+    SuperAwesome_D_Matrix.setArg<cl_float>  (2, rfactor);
+    SuperAwesome_D_Matrix.setArg<cl_mem>    (3, NZ_values);
+    SuperAwesome_D_Matrix.setArg<cl_mem>    (4, NZ_Columns);
+    SuperAwesome_D_Matrix.setArg<cl_mem>    (5, NZ_Rows);
+    
+    // Launch the kernel
     queue.enqueueNDRangeKernel(SuperAwesome_D_kernel, 0,cl::NDRange(Src.rows, Src.cols),cl::NDRange(wgSize, wgSize), NULL, NULL);
     
-    // Read from Device to Host
-    ::clEnqueueReadBuffer(queue(), NZ_values,   true, 0, count * sizeof(cl_float),  h_GpuV.data(), 0, NULL, NULL);
-    ::clEnqueueReadBuffer(queue(), NZ_Columns,  true, 0, count * sizeof(cl_uint),   h_GpuC.data(), 0, NULL, NULL);
-    ::clEnqueueReadBuffer(queue(), NZ_Rows,     true, 0, count * sizeof(cl_uint),   h_GpuR.data(), 0, NULL, NULL);
-
-    /*
-    queue.enqueueReadBuffer(NZ_values, true, 0, size, h_GpuV.data(), NULL, NULL);
+    // Read from device to host
+    queue.enqueueReadBuffer(NZ_values,  true, 0, size, h_GpuV.data(), NULL, NULL);
     queue.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(), NULL, NULL);
-    queue.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,NULL);
-    */
-
-    // Initialise _Dmatrix_ClSPARSE
-    /*
-    _Dmatrix_ClSPARSE.values = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                     ( _Dmatrix_ClSPARSE.num_nonzeros ) * sizeof( clsparseIdx_t ), NULL, NULL );
-
-    _Dmatrix_ClSPARSE.col_indices = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                     ( _Dmatrix_ClSPARSE.num_nonzeros ) * sizeof( clsparseIdx_t ), NULL, NULL );
-
-    _Dmatrix_ClSPARSE.row_pointer = ::clCreateBuffer( context(), CL_MEM_READ_WRITE,
-                                     ( _Dmatrix_ClSPARSE.num_rows + 1 ) * sizeof( clsparseIdx_t ), NULL, NULL );
-    
-    cl_int copyres = clEnqueueCopyBuffer(queue(), NZ_values, _Dmatrix_ClSPARSE.values, 0, 0, 
-                                    _Dmatrix_ClSPARSE.num_nonzeros * sizeof(float), 0, NULL, NULL);
-    
-    if(copyres == CL_SUCCESS)
-        std::cout << "copyres value " << copyres << "\n";
-
-    //Test Vector
-    std::vector<float> test_values (_Dmatrix_ClSPARSE.num_nonzeros);
-    memset(test_values.data(), 0, _Dmatrix_ClSPARSE.num_nonzeros);
-    ::clEnqueueReadBuffer(queue(), _Dmatrix_ClSPARSE.values,  true, 0, size, test_values.data(), 0, NULL, NULL);
-*/
-/*
-    clEnqueueFillBuffer(queue(), _Dmatrix_ClSPARSE.values, &zero, sizeof(float),
-                                    0, _Dmatrix.num_nonzeros * sizeof(float), 0, NULL, NULL);
-    clEnqueueFillBuffer(queue(), _Dmatrix_ClSPARSE.col_indices, &zero, sizeof(float),
-                                    0, _Dmatrix.num_nonzeros * sizeof(float), 0, NULL, NULL);
-    clEnqueueFillBuffer(queue(), _Dmatrix_ClSPARSE.row_pointer, &zero, sizeof(float),
-                                    0,  (_Dmatrix.num_rows + 1 ) * sizeof(float), 0, NULL, NULL);
-*/
+    queue.enqueueReadBuffer(NZ_Rows,    true, 0, size, h_GpuR.data(), NULL, NULL);
 
     /* ViennaCl*/
 
@@ -300,14 +198,65 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     //cl_mem mem_col_buffer = ::clCreateBuffer(context(), CL_MEM_READ_WRITE, count * sizeof(cl_uint),     h_GpuC.data(), NULL);
     //cl_mem mem_row_buffer = ::clCreateBuffer(context(), CL_MEM_READ_WRITE, count * sizeof(cl_uint),     h_GpuR.data(), NULL);
 
-    //viennacl::compressed_matrix<float> _vDmatrix(mem_row_buffer, mem_col_buffer, mem_elements, (size_t)(Src.rows*Src.cols), (size_t)(Dest.rows*Dest.cols), (size_t)nnz);
+    //viennacl::compressed_matrix<float> _vDmatrix(mem_row_buffer, mem_col_buffer, mem_elements, (size_t)(Src.rows*Src.cols), (size_t)(Dest.rows*Dest.cols), count);
 
-    viennacl::compressed_matrix<float> _vDmatrix ((size_t)(Src.rows*Src.cols), (size_t)(Dest.rows*Dest.cols));
+    /* Setup Dmatrix for Multiplication*/
+    // Setup CPU matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_Dmatrix(dim_srcvec);
+    
+    // Copy data to CPU matrix - Sequential and time consuming
+    for (int i = 0; i < count; i++)
+    {
+        cpu_sparse_Dmatrix[h_GpuR[i]][h_GpuC[i]] =  h_GpuV[i];
+    }
 
-    //_vDmatrix.handle();
+    // Create ViennaCl compressed Dmatrix
+    viennacl::compressed_matrix<float> gpu_sparse_Dmatrix(dim_srcvec, dim_dstvec);
+    
+    // Copy cpu sparse matrix to device sparse matrix
+    copy(cpu_sparse_Dmatrix, gpu_sparse_Dmatrix);
 
-    //std::cout << "test is" << test <<  "\n";
+    /* Setup Identity matrix for testing Multiplication*/
+    // Setup CPU matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_Dmatrix(dim_srcvec);
+    
+    // Copy data to CPU matrix - Sequential and time consuming
+    for (int i = 0; i < dim_dstvec; i++)
+    {
+        cpu_sparse_Imatrix[i][i] = 1;
+    }
+    
+    // Create ViennaCl compressed Identity matrix for testing
+    viennacl::compressed_matrix<float> gpu_sparse_Imatrix(dim_dstvec, dim_dstvec);
+    
+    // Copy cpu sparse matrix to device sparse matrix
+    copy(cpu_sparse_Dmatrix, gpu_sparse_Dmatrix);
+    
+    /* Create ViennaCl compressed result matrix for testing */
+    std::vector< std::map< unsigned int, float> > gpu_sparse_Rmatrix(dim_srcvec);
 
+    /*ViennaCL sparse matrix- sparse matrix product*/
+    gpu_sparse_Rmatrix = viennacl::linalg::prod(gpu_sparse_Dmatrix, gpu_sparse_Imatrix);
+
+    // Setup CPU matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_Dtmatrix(dim_srcvec);
+    
+    //Copy from returned device to host memory
+    copy(gpu_sparse_Rmatrix, cpu_sparse_Dtmatrix );
+    
+    //Print 
+    int it_count = 0;
+    for(std::vector<T>::iterator it = cpu_sparse_Dtmatrix.begin(); it != cpu_sparse_Dtmatrix.end(); ++it)
+    {
+        std::cout << "( " << it_count;
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << " , " << it1->first << ")" << " --> " << it->second << endl; 
+        }
+        it_count++;
+    }
+
+    /*
     cl_int copyres = ::clEnqueueWriteBuffer(queue(), _vDmatrix.handle().opencl_handle(),  true, 0, count * sizeof(cl_float),  h_GpuV.data(), 0, NULL, NULL);
 
     std::cout << "copyres value " << copyres << "\n";
@@ -332,8 +281,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 
     //_vDmatrix.handle1();
     //_vDmatrix.handle2();
-
-
+*/
+/*
     int k = 0;
     for (int i = 0; i < count; i++)
     {
@@ -347,7 +296,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
             k=0;
         }
     }
-
+*/
 	return _Dmatrix;
 }
 

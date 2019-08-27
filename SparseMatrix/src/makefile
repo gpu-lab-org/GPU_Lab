@@ -8,7 +8,7 @@ ODIR=../Debug
 
 # With lib path for ClSPARSE - Edit the path accordingly
 
-LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -L../lib//ClSPARSE/clSPARSE-package/lib64
+LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -L../lib/ClSPARSE/clSPARSE-package/lib64
 
 # Without lib path for ClSPARSE
 #LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu 
@@ -18,7 +18,7 @@ LDIR = -L../lib -L/opt/amdgpu-pro/lib/x86_64-linux-gnu -L/appl/pas/opencv/lib -L
 #LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl
 
 # Version OpenCL 3.0 and above with -lclSPARSE
-LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl -lclSPARSE
+LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl -lclSPARSE
 
 # Version OpenCL 3.0 and above without -lclSPARSE
 #LIBS= -lopencv_calib3d -lOpenCL -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_ml -lopencv_video -lopencv_features2d -lboost_system -lboost_filesystem -lboost_program_options -lpthread -lboost_thread -ldl

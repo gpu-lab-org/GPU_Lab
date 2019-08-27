@@ -4,7 +4,7 @@
 
 
 
-__kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns) {
+__kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__global float* NZ_values,__global int* NZ_Columns) {
 
     size_t i = get_global_id(0); // the Ith loop we removed
 	size_t j = get_global_id(1);  // the Jth loop we removed
@@ -22,7 +22,7 @@ __kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__
             // j*4 is the Jth loop that was there in the CPU implementation
 			int HRindex = m*dst_cols+ n; // The column index
             NZ_values[j*4 + i*countX*4 +k] = 1.0/rfactor/rfactor; 
-            NZ_Rows[j*4 + i*countX*4 +k] = LRindex;
+            //NZ_Rows[j*4 + i*countX*4 +k] = LRindex;
             NZ_Columns[j*4 + i*countX*4 +k] = HRindex;
             k++;
 		}

@@ -4,32 +4,38 @@
 
 
 
-__kernel void SuperAwesome_D_Matrix (int src_cols, int dst_cols,float rfactor,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns) {
+__kernel void SuperAwesome_D_Matrix (uint rfactor,__global float* NZ_values,__global int* NZ_Columns) {
 
-    size_t i = get_global_id(0); // the Ith loop we removed
-	size_t j = get_global_id(1);  // the Jth loop we removed
-    size_t countX = get_global_size(0); // The size of Ith loop
+    size_t i = get_global_id(0);                                                                                    // the Ith loop we removed
+	size_t j = get_global_id(1);                                                                                    // the Jth loop we removed
+    size_t countX = get_global_size(0);                                                                             // The size of Ith loop
 
-    int k = 0;
+    uint k = 0;
 
-	int LRindex = i*src_cols + j; // The row index
+	uint LRindex = i*countX + j; // The row index
 	for (int m = rfactor*i; m < (i+1)*rfactor; m++)
 	{ 
 		for (int n = rfactor*j; n < (j+1)*rfactor; n++)
 		{
-            // i*countX*4 is the TOTAL memory locations we have to loop over
+            // i*countX*rfactor*rfactor are the TOTAL number of memory locations to loop over
             // k is the small innermost loop that puts 4 values in each row
             // j*4 is the Jth loop that was there in the CPU implementation
-			int HRindex = m*dst_cols+ n; // The column index
-            NZ_values[j*4 + i*countX*4 +k] = 1.0/rfactor/rfactor; 
-            NZ_Rows[j*4 + i*countX*4 +k] = LRindex;
-            NZ_Columns[j*4 + i*countX*4 +k] = HRindex;
+
+			uint HRindex = m*countX*rfactor + n;                                                                    // Previously m*dst_cols+ n; // The column index
+            NZ_values [j*rfactor*rfactor + i*countX*rfactor*rfactor + k] = 1.0/rfactor/rfactor; 
+            NZ_Columns[j*rfactor*rfactor + i*countX*rfactor*rfactor + k] = HRindex;
             k++;
 		}
 	}
-		
-
 }
+
+__kernel void SuperAwesome_D_Row_Pointer (uint rfactor, __global int* NZ_Row_Pointer) {
+
+    size_t i = get_global_id(0);                                                                                    // The row order
+
+    NZ_Row_Pointer[i] = i * rfactor * rfactor;
+}
+
 
 kernel void SuperAwesome_H_Matrix (int kernel_rows, int kernel_cols,int Dest_cols,int Dest_rows,int dim_dstvec,__global float* kernelgpu,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns) {
 	/*

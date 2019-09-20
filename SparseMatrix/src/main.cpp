@@ -148,7 +148,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     std::size_t wgSize      = 16;                                       // Work Group size
 	std::size_t dim_srcvec  = Src.rows * Src.cols;                      // Number of Rows in D Matrix
     std::size_t dim_dstvec  = Dest.rows * Dest.cols;                    // Number of Columns in D Matrix
-    std::size_t count       = Src.rows * Src.cols* rfactor * rfactor;   // Number of non zero elements
+    std::size_t count       = Src.rows * Src.cols * rfactor * rfactor;  // Number of non zero elements
 
     // Create a new Eigen Matrix
     Eigen::SparseMatrix<float,Eigen::RowMajor, int> _Dmatrix(Src.rows*Src.cols, Dest.rows*Dest.cols);
@@ -306,7 +306,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     // Create a new Eigen Matrix
 	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Hmatrix(dim_dstvec, dim_dstvec);
 
- 	int kernelSize = kernel.rows*kernel.cols;
+ 	uint kernelSize = kernel.rows*kernel.cols;
 	int radius_y = int((kernel.rows-1)/2);
     int radius_x = int((kernel.cols-1)/2);
     // kernel matrix to vector conversion (Size 3X3 matrix)
@@ -315,7 +315,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     std::size_t wgSize = 16;
 
     // Compute total buffer size to be allocated to V, C and R buffers   
-    std::size_t count  = dim_dstvec*kernelSize;    
+    std::size_t count  = dim_dstvec * kernelSize;    
     std::size_t size   = count *sizeof (float);
 	std::size_t kerSize = kernelSize*sizeof(float);
 
@@ -325,13 +325,13 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     std::vector<unsigned int> h_GpuC (count);
 
 	for (int m = 0; m < kernel.rows; m++)
-            {
-                for (int n = 0; n < kernel.cols; n++)
-                {
-                    vkernel[m*kernel.cols +n] = kernel.at<float>(m,n);
-                    //std::cout<< kernelgpu[m*kernel.cols +n];            
-                }
-            }
+    {
+        for (int n = 0; n < kernel.cols; n++)
+        {
+            vkernel[m*kernel.cols +n] = kernel.at<float>(m,n);
+            //std::cout<< kernelgpu[m*kernel.cols +n];            
+        }
+    }
 
     //     
 
@@ -360,17 +360,16 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     SuperAwesome_H_kernel.setArg<cl::Buffer>(1,NZ_Values);   
     SuperAwesome_H_kernel.setArg<cl::Buffer>(2,NZ_Rows); 
     SuperAwesome_H_kernel.setArg<cl::Buffer>(3,NZ_Columns);
-    SuperAwesome_H_kernel.setArg<cl_int>(4,kernel.rows);
-	SuperAwesome_H_kernel.setArg<cl_int>(5,kernel.cols);
+    SuperAwesome_H_kernel.setArg<cl_int>    (4,kernel.rows);
+	SuperAwesome_H_kernel.setArg<cl_int>    (5,kernel.cols);
 
     // Launch the kernel
     que.enqueueNDRangeKernel(SuperAwesome_H_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, &event_kernel);
 
-
     // Copy output data from device to host
-    que.enqueueReadBuffer(NZ_Rows, true, 0, size, h_GpuR.data(),NULL,&event_read1);
-    que.enqueueReadBuffer(NZ_Values, true, 0, size, h_GpuV.data(),NULL,&event_read2);
-    que.enqueueReadBuffer(NZ_Columns, true, 0, size, h_GpuC.data(),NULL,&event_read3);
+    que.enqueueReadBuffer(NZ_Rows,      true, 0, size, h_GpuR.data(),NULL,&event_read1);
+    que.enqueueReadBuffer(NZ_Values,    true, 0, size, h_GpuV.data(),NULL,&event_read2);
+    que.enqueueReadBuffer(NZ_Columns,   true, 0, size, h_GpuC.data(),NULL,&event_read3);
     
     // CPU computation time for Triplet
 	Core::TimeSpan time_trip1 = Core::getCurrentTime();
@@ -444,7 +443,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
         for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
         {
             std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
-
         }
         std::cout << "\n";
     }
@@ -473,7 +471,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     // Parameters to compute total buffer size to be allocated to V, C and R buffers
 	int dim_dstvec      = Dest.rows * Dest.cols;
     std::size_t wgSize  = 16;
-    std::size_t count   = Dest.rows * (Dest.cols*4);
+    std::size_t count   = Dest.rows * Dest.cols * 4;
     std::size_t size    = count *sizeof (float);
 
 	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Mmatrix(dim_dstvec, dim_dstvec);
@@ -502,23 +500,20 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 	cl::Kernel SuperAwesome_M_kernel(program, "SuperAwesome_M_Matrix");
 
     //kernel arguments
-    SuperAwesome_M_kernel.setArg<cl_int>    (0, Dest.rows);
-	SuperAwesome_M_kernel.setArg<cl_int>    (1, Dest.cols);
-    SuperAwesome_M_kernel.setArg<cl_float>  (2, deltaX); 
-    SuperAwesome_M_kernel.setArg<cl_float>  (3, deltaY);
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(4, NZ_Rows);
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(5, NZ_values);    
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(6, NZ_Columns);
-    SuperAwesome_M_kernel.setArg<cl_int>    (7, dim_dstvec);
+    SuperAwesome_M_kernel.setArg<cl_float>  (0, deltaX); 
+    SuperAwesome_M_kernel.setArg<cl_float>  (1, deltaY);
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(2, NZ_Rows);
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(3, NZ_values);    
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(4, NZ_Columns);
 
     //launch the kernel
-    que.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0,cl::NDRange(Dest.rows, Dest.cols),cl::NDRange(wgSize, wgSize), NULL, &event_kernel);
+    que.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, &event_kernel);
 
     que.enqueueReadBuffer(NZ_Rows,      true, 0, size, h_GpuR.data(), NULL, &event_read1);
     que.enqueueReadBuffer(NZ_values,    true, 0, size, h_GpuV.data(), NULL, &event_read2);
     que.enqueueReadBuffer(NZ_Columns,   true, 0, size, h_GpuC.data(), NULL, &event_read3);
 
-    // Compute Eigen from Triple
+    /* Compute Eigen from Triple */
 
     // CPU computation time for Triplet
 	Core::TimeSpan time_trip1 = Core::getCurrentTime();
@@ -645,9 +640,9 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 	std::cout << "Time taken to execute MMatrix - " << timem << std::endl;
     std::cout <<"==================================================" << std::endl;
 
-    //_DHF = DMatrix * (HMatrix * MMatrix);
+    _DHF = DMatrix * (HMatrix * MMatrix);
 
-    //_DHF.makeCompressed();
+    _DHF.makeCompressed();
 
     return _DHF;
 }
@@ -829,9 +824,9 @@ int main(int argc, char** argv)
 
     for (size_t i = 0;i < image_count;i++)
     {
-        Src[i] = cv::imread("../Images/Cameraman/LR1.tif", CV_LOAD_IMAGE_ANYDEPTH);
-
-//        Src[i] = cv::imread("../Images/Test/LR_0001.tif", CV_LOAD_IMAGE_ANYDEPTH);
+        //Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+        // TODO - To remove
+        Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
    
 	    if(! Src[i].data)
                 std::cerr<<"No files can be found!"<<std::endl;
@@ -852,4 +847,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-

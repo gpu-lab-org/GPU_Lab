@@ -2,8 +2,10 @@
 #include <OpenCL/OpenCLKernel.hpp> // Hack to make syntax highlighting in Eclipse work
 #endif
 
-
-
+/*
+ * SuperAwesome_D_Matrix :
+ * Description - Compute the Values, Columns and Rows vectors of the D-Matrix as required for the Sparse CRS or CLS representation.
+*/
 __kernel void SuperAwesome_D_Matrix (uint rfactor,__global float* NZ_values,__global int* NZ_Columns, __global int* NZ_Rows) {
 
     size_t i = get_global_id(0);                                                                                    // the Ith loop we removed
@@ -30,6 +32,10 @@ __kernel void SuperAwesome_D_Matrix (uint rfactor,__global float* NZ_values,__gl
 	}
 }
 
+/*
+ * SuperAwesome_D_Row_Pointer :
+ * Description - Compute the Row pointer vector of the Sparse D-Matrix for the Sparse CRS representation.
+*/
 __kernel void SuperAwesome_D_Row_Pointer (uint rfactor, __global int* NZ_Row_Pointer) {
 
     size_t i = get_global_id(0);                                                                                    // The row order
@@ -37,8 +43,11 @@ __kernel void SuperAwesome_D_Row_Pointer (uint rfactor, __global int* NZ_Row_Poi
     NZ_Row_Pointer[i] = i * rfactor * rfactor;
 }
 
-
-__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global float* NZ_values, __global int* NZ_Rows, __global int* NZ_Columns, int kernel_rows, int kernel_cols) {
+/*
+ * SuperAwesome_H_Matrix :
+ * Description - Compute the Values, Columns and Rows vectors of the H-Matrix as required for the Sparse CRS or CLS representation.
+*/
+__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global float* NZ_values, __global int* NZ_Rows, __global int* NZ_Columns, uint kernel_rows, uint kernel_cols) {
 
     size_t i = get_global_id(0);                                    // the i'th row
 	size_t j = get_global_id(1);                                    // the j'th column
@@ -46,85 +55,153 @@ __kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global floa
     size_t Dest_cols = get_global_size(1);                          // total number of columns in Dest
 
     // Total buffer size for checking bounds # no
-    int dim_dstvec = Dest_rows * Dest_cols;
+    uint dim_dstvec = Dest_rows * Dest_cols;
 
 	int k = 0;
     // Corresponding row of H-Matrix 
-    int index = i*Dest_cols + j;
+    uint index = i*Dest_cols + j;
 
 	int radius_y = ((kernel_rows-1)/2);
     int radius_x = ((kernel_cols-1)/2);
-	int kernelSize = kernel_rows*kernel_cols;
+	uint kernelSize = kernel_rows*kernel_cols;
+
     // Row indexing Offset to handle matrix to buffer representation
     int row_offset =  index*kernelSize;
 
-            for (int m = 0; m < kernel_rows; m++)
+    for (int m = 0; m < kernel_rows; m++)
+    {
+        for (int n = 0; n < kernel_cols; n++)
+        {
+            int loc = (i-radius_y+m)*Dest_cols + (j-radius_x+n);
+            if ( ((int)i)-radius_y+m >= 0 && ((int)i)-radius_y+m < Dest_rows && ((int)j)-radius_x+n >= 0 && ((int)j)-radius_x+n < Dest_cols && loc < dim_dstvec)
             {
-                for (int n = 0; n < kernel_cols; n++)
-                {
-                    int loc = (i-radius_y+m)*Dest_cols + (j-radius_x+n);
-                    if (i-radius_y+m >= 0 && i-radius_y+m < Dest_rows && j-radius_x+n >= 0 && j-radius_x+n < Dest_cols && loc < dim_dstvec)
-                    {
-					    //_Hmatrix.coeffRef(index,loc) = kernel.at<float>(m,n);
-						NZ_values[row_offset + k] = gauss_kernel[m*kernel_rows +n];
-        				NZ_Rows[row_offset + k] = index;
-						NZ_Columns[row_offset + k] = loc;
-						k++;
-					}
-                }
-				
-            }
+			    //_Hmatrix.coeffRef(index,loc) = kernel.at<float>(m,n);
+				NZ_values[row_offset + k] = gauss_kernel[m*kernel_rows +n];
+				NZ_Rows[row_offset + k] = index;
+				NZ_Columns[row_offset + k] = loc;
+				k++;
+			}
+        }
+    }
 }
 
 
-__kernel void SuperAwesome_M_Matrix (int dst_rows, int dst_cols,float deltaX,float deltaY,__global int* NZ_Rows,__global float* NZ_values,__global int* NZ_Columns,int dim_dstvec) {
+/*
+ * SuperAwesome_H_Row_Pointer :
+ * Description - Compute the Row pointer vector of the Sparse H-Matrix for the Sparse CRS representation.
+*/
+__kernel void SuperAwesome_H_Row_Pointer (float psfW, uint Dest_rows, uint Dest_cols,  __global int* NZ_Row_Pointer) {
+
+    size_t i    = get_global_id(0);                                           // Get the index of Row Pointer
+    size_t xact = (i / Dest_cols);                             // X value of Dest matrix
+	size_t yact = (i % Dest_cols);                             // Y value of Dest matrix
+
+    int x           = 0;
+    int y           = 0;
+    int psfWidth    = (int) psfW;
+
+    // Taking care for the first element of the Row Pointer vector which is zero.
+    if ( (xact == 0) && (yact == 0) )
+    {
+        NZ_Row_Pointer[i] = 0;  
+        return;
+    }  
+
+    // For handling every (*, 0) element of the matrix
+    if ( (xact > 0) && (yact == 0) )
+    {
+        x = xact - 1;
+        y = Dest_cols;    
+    }
+    // For moving one to one element left for the rest of the elements    
+    else
+    {
+        x = xact;
+        y = yact - 1;
+    }
+
+    // Handle corner elements
+    if(((x - (psfWidth / 2)) < 0) && ((y - (psfWidth / 2)) < 0))
+        NZ_Row_Pointer[i] = ( (psfWidth + (x - (psfWidth / 2))) * (psfWidth + (y - (psfWidth / 2))) );
+
+    // Handle edge elements
+    else if(((x - (psfWidth / 2)) < 0) && ((y + (psfWidth / 2)) > Dest_rows))
+        NZ_Row_Pointer[i] = ( (psfWidth + (x - (psfWidth / 2))) * (psfWidth - (y + (psfWidth / 2) - Dest_rows)) );
+
+    // Handle edge elements
+    else if(((x + (psfWidth / 2)) > 0) && ((y - (psfWidth / 2)) < 0))
+        NZ_Row_Pointer[i] = ( (psfWidth - (x + (psfWidth / 2) - Dest_cols)) * (psfWidth + (y - (psfWidth / 2))) );
+
+    // Handle corner elements
+    else if(((x + (psfWidth / 2)) > 0) && ((y + (psfWidth / 2)) > 0))
+        NZ_Row_Pointer[i] = ( (psfWidth - (x + (psfWidth / 2) - Dest_cols)) * (psfWidth - (y + (psfWidth / 2) - Dest_rows)) );
+
+    // Rest of the elements
+    else
+        NZ_Row_Pointer[i] = (psfWidth * psfWidth);
+
+}
+
+
+/*
+ * SuperAwesome_M_Matrix :
+ * Description - Compute the Values, Columns and Rows vectors of the M-Matrix as required for the Sparse CRS or CLS representation.
+*/
+__kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global int* NZ_Rows, __global float* NZ_values, __global int* NZ_Columns) {
        
-    size_t i = get_global_id(0); // the Ith loop we removed
-	size_t j = get_global_id(1);  // the Jth loop we removed
-    size_t countX = get_global_size(0);
-    size_t countY = get_global_size(1);
+    size_t i = get_global_id(0);                                // the Ith loop we removed
+	size_t j = get_global_id(1);                                // the Jth loop we removed
+    size_t countX = get_global_size(0);                         // Dest.rows
+    size_t countY = get_global_size(1);                         // Dest.cols
 
-    //int dim_dstvec = dst_rows*dst_cols;
-    //int k = 0;
-    if(i < (dst_rows-floor(deltaY)) && j< (dst_cols-floor(deltaX)) && (i+floor(deltaY) >= 0) && (j+floor(deltaX) >= 0))
-			{
-				int index = i*dst_cols + j;
-				int neighborUL = (i+(deltaY))*dst_cols + (j+(deltaX));
-				int neighborUR = (i+(deltaY))*dst_cols + (j+(deltaX)+1);
-				int neighborBR = (i+(deltaY)+1)*dst_cols + (j+(deltaX)+1);
-				int neighborBL = (i+(deltaY)+1)*dst_cols + (j+(deltaX));
+    uint dim_dstvec = countX * countY;                          // CPU - int dim_dstvec = Dest.rows * Dest.cols;
 
-				if(neighborUL >= 0 && neighborUL < dim_dstvec)
-                {
-					//_Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
-                    NZ_values[i*countY*4 + j*4] = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX)); 
-                    NZ_Rows[i*countY*4 + j*4] = index;
-                    NZ_Columns[i*countY*4 + j*4] = neighborUL;
-                    //k++;
-                }   
-				if(neighborUR >= 0 && neighborUR < dim_dstvec)
-                {
-					//_Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX)));
-                    NZ_values[i*countY*4 + j*4+1] = (i+(deltaY)+1-(i+deltaY))*(j+deltaX-(j+(deltaX))); 
-                    NZ_Rows[i*countY*4 + j*4+1] = index;
-                    NZ_Columns[i*countY*4 + j*4+1] = neighborUR;
-                    //k++;
-                }
-				if(neighborBR >= 0 && neighborBR < dim_dstvec)
-                {
-					//_Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
-                    NZ_values[i*countY*4 + j*4+2] = (i+deltaY-(i+(deltaY)))*(j+deltaX-(j+(deltaX)));
-                    NZ_Rows[i*countY*4 + j*4+2] = index;
-                    NZ_Columns[i*countY*4 + j*4+2] = neighborBR;
-                    //k++;
-                }
-				if(neighborBL >= 0 && neighborBL < dim_dstvec)
-                {
-					//_Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
-                    NZ_values[i*countY*4 + j*4+3] = (i+deltaY-(i+(deltaY)))*(j+(deltaX)+1-(j+deltaX));
-                    NZ_Rows[i*countY*4 + j*4+3] = index;
-                    NZ_Columns[i*countY*4 + j*4+3] = neighborBL;
-                    //k++;
-                }
-			}
+    if(i < (countX-floor(deltaY)) && j< (countY-floor(deltaX)) && (i+floor(deltaY) >= 0) && (j+floor(deltaX) >= 0))
+	{
+		int index = i*countY + j;
+		int neighborUL = (i+(deltaY))*countY + (j+(deltaX));
+		int neighborUR = (i+(deltaY))*countY + (j+(deltaX)+1);
+		int neighborBR = (i+(deltaY)+1)*countY + (j+(deltaX)+1);
+		int neighborBL = (i+(deltaY)+1)*countY + (j+(deltaX));
+
+		if(neighborUL >= 0 && neighborUL < dim_dstvec)
+        {
+			//CPU - _Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
+            NZ_values   [i*countY*4 + j*4]    = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX)); 
+            NZ_Rows     [i*countY*4 + j*4]    = index;
+            NZ_Columns  [i*countY*4 + j*4]    = neighborUL;
+        }   
+		if(neighborUR >= 0 && neighborUR < dim_dstvec)
+        {
+			//CPU - _Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX)));
+            NZ_values   [i*countY*4 + j*4+1]  = (i+(deltaY)+1-(i+deltaY))*(j+deltaX-(j+(deltaX))); 
+            NZ_Rows     [i*countY*4 + j*4+1]  = index;
+            NZ_Columns  [i*countY*4 + j*4+1]  = neighborUR;
+        }
+		if(neighborBR >= 0 && neighborBR < dim_dstvec)
+        {
+			//CPU - _Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
+            NZ_values   [i*countY*4 + j*4+2]  = (i+deltaY-(i+(deltaY)))*(j+deltaX-(j+(deltaX)));
+            NZ_Rows     [i*countY*4 + j*4+2]  = index;
+            NZ_Columns  [i*countY*4 + j*4+2]  = neighborBR;
+        }
+		if(neighborBL >= 0 && neighborBL < dim_dstvec)
+        {
+			//CPU - _Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
+            NZ_values   [i*countY*4 + j*4+3]  = (i+deltaY-(i+(deltaY)))*(j+(deltaX)+1-(j+deltaX));
+            NZ_Rows     [i*countY*4 + j*4+3]  = index;
+            NZ_Columns  [i*countY*4 + j*4+3]  = neighborBL;
+        }
+	}
+}
+
+/*
+ * SuperAwesome_M_Row_Pointer :
+ * Description - Compute the Row pointer vector of the Sparse M-Matrix for the Sparse CRS representation.
+*/
+__kernel void SuperAwesome_M_Row_Pointer (__global int* NZ_Row_Pointer) {
+
+    size_t i = get_global_id(0);                                                                                    // The row order
+
+    NZ_Row_Pointer[i] = 4;
 }

@@ -902,7 +902,6 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
     std::cout <<"---------------------------------------------------------------------------------" << std::endl << std::endl << std::endl;
 
     /*
-    // Log computation
     std::ofstream log1("Dmatrix_time.txt", std::ios_base::app | std::ios_base::out);
     log1 << timet1 << std::endl;
 
@@ -912,8 +911,11 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
     std::ofstream log3("Mmatrix_time.txt", std::ios_base::app | std::ios_base::out);
     log3 << timet3 << std::endl;
 
-    std::ofstream log4("DHFmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    std::ofstream log4("Multi_time.txt", std::ios_base::app | std::ios_base::out);
     log4 << timet4 << std::endl;
+
+    std::ofstream log5("DHFmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log5 << timet << std::endl;
     
     // Print on console
 

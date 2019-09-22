@@ -132,13 +132,13 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     myfile1 << "Printing D Matrix" << "\n";
-    // myfile << "Inside function Dmatrix" << "\n";
-    // myfile << "rfactor = " << rfactor << std::endl;
-    // myfile << "Src = " << "\n" << Src << std::endl;
-    // myfile << "Dest = "<< "\n" << Dest << std::endl << std::endl;
-	// myfile << "Number of non zeros in _Dmatrix - "<< _Dmatrix.nonZeros() << "\n";
-	// myfile << "Size of _Dmatrix - " << _Dmatrix.rows() << " X " << _Dmatrix.cols() << std::endl << std::endl;
-    // myfile << "_Dmatrix is - " << std::endl << MatrixXf(_Dmatrix) << std::endl << std::endl;
+    // myfile1 << "Inside function Dmatrix" << "\n";
+    // myfile1 << "rfactor = " << rfactor << std::endl;
+    // myfile1 << "Src = " << "\n" << Src << std::endl;
+    // myfile1 << "Dest = "<< "\n" << Dest << std::endl << std::endl;
+	// myfile1 << "Number of non zeros in _Dmatrix - "<< _Dmatrix.nonZeros() << "\n";
+	// myfile1 << "Size of _Dmatrix - " << _Dmatrix.rows() << " X " << _Dmatrix.cols() << std::endl << std::endl;
+    // myfile1 << "_Dmatrix is - " << std::endl << MatrixXf(_Dmatrix) << std::endl << std::endl;
 
     for (int k=0; k<_Dmatrix.outerSize(); ++k)
     {    
@@ -203,12 +203,12 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     myfile1 << "Printing A" << "\n";
-    // myfile << "Inside function Hmatrix" << "\n";
-    // myfile << "kernel - " << "\n" << kernel << std::endl;
-    // myfile << "Dest - "<< "\n" << Dest << std::endl << std::endl;
-	// myfile << "Number of non zeros in _Hmatrix - "<< _Hmatrix.nonZeros() << "\n";
-	// myfile << "Size of _Hmatrix - " << _Hmatrix.rows() << " X " << _Hmatrix.cols() << std::endl << std::endl;
-    // myfile << "_Hmatrix is - " << "\n" << MatrixXf(_Hmatrix) << std::endl << std::endl;
+    // myfile1 << "Inside function Hmatrix" << "\n";
+    // myfile1 << "kernel - " << "\n" << kernel << std::endl;
+    // myfile1 << "Dest - "<< "\n" << Dest << std::endl << std::endl;
+	// myfile1 << "Number of non zeros in _Hmatrix - "<< _Hmatrix.nonZeros() << "\n";
+	// myfile1 << "Size of _Hmatrix - " << _Hmatrix.rows() << " X " << _Hmatrix.cols() << std::endl << std::endl;
+    // myfile1 << "_Hmatrix is - " << "\n" << MatrixXf(_Hmatrix) << std::endl << std::endl;
 
     for (int k=0; k<_Hmatrix.outerSize(); ++k)
     {    
@@ -299,14 +299,14 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     myfile1 << "Printing M Matrix" << "\n";
-    myfile << "-----------------------------------------------------------------------------------------" << std::endl;
+    myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     // myfile << "Inside function Mmatrix" << "\n";
-    // myfile << "deltaX - " << deltaX << std::endl;
-    // myfile << "deltaY - " << deltaY << std::endl;
-    // myfile << "Dest - "<< "\n" << Dest << std::endl << std::endl;
-	// myfile << "Number of non zeros in _Mmatrix - "<< _Mmatrix.nonZeros() << "\n";
-	// myfile << "Size of _Mmatrix - " << _Mmatrix.rows() << " X " << _Mmatrix.cols() << std::endl << std::endl;
-    // myfile << "_Mmatrix is - " << std::endl << MatrixXf(_Mmatrix) << std::endl << std::endl;
+    myfile1 << "deltaX - " << deltaX << std::endl;
+    myfile1 << "deltaY - " << deltaY << std::endl;
+    myfile1 << "Dest - "<< "\n" << Dest << std::endl << std::endl;
+	myfile1 << "Number of non zeros in _Mmatrix - "<< _Mmatrix.nonZeros() << "\n";
+	myfile1 << "Size of _Mmatrix - " << _Mmatrix.rows() << " X " << _Mmatrix.cols() << std::endl << std::endl;
+    myfile1 << "_Mmatrix is - " << std::endl << MatrixXf(_Mmatrix) << std::endl << std::endl;
 
     for (int k=0; k<_Mmatrix.outerSize(); ++k)
     {    
@@ -317,8 +317,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
         myfile1 << "\n";
     }
     myfile1.close();
-*/
 
+*/
 	return _Mmatrix;
 }
 
@@ -379,7 +379,7 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
     myfile1.open ("DHFmatrixCPU.txt");
   
 /*
-    // File print 
+    // Debug Info
 
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     myfile1 << "Printing DHF" << "\n";
@@ -539,11 +539,10 @@ int main(int argc, char** argv)
     std::vector<cv::Mat> motionvec;
     motionMat(motionvec, image_count, rfactor, true);
 
-    int j = 0,
+
     for (size_t i = 0;i < image_count;i++)
     {
-        j = i % 4;
-        Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (j+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+        //Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (j+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
 
 	    if(! Src[i].data)
             std::cerr<<"No files can be found!"<<std::endl;

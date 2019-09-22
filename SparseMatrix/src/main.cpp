@@ -46,11 +46,11 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 
 				motionvec.at<float>(1,2) = quotient/1.0/rfactor;
 
-                std::cout << "motionvec = " << std::endl << motionvec << std::endl << std::endl;
+ //               std::cout << "motionvec = " << std::endl << motionvec << std::endl << std::endl;
                 
 				motionVec.push_back(motionvec);
 
-				std::cout<<"image i = "<<i<<", x motion = "<<motionvec.at<float>(0,2)<<", y motion = "<<motionvec.at<float>(1,2)<<std::endl;
+//				std::cout<<"image i = "<<i<<", x motion = "<<motionvec.at<float>(0,2)<<", y motion = "<<motionvec.at<float>(1,2)<<std::endl;
 			}
 	}
 	else
@@ -86,14 +86,14 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
-    std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
-    std::cout << "Inside function Dmatrix" << std::endl;
+  //  std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
+//    std::cout << "Inside function Dmatrix" << std::endl;
     //std::cout << "rfactor = " << rfactor << std::endl;
     //std::cout << "Src = " << std::endl << Src << std::endl << std::endl;
     //std::cout << "Dest = "<< std::endl << Dest << std::endl << std::endl;
     
     // CPU computation times
-	Core::TimeSpan time1 = Core::getCurrentTime();
+	//Core::TimeSpan time1 = Core::getCurrentTime();
 
 	int dim_srcvec = Src.rows * Src.cols;
     int dim_dstvec = Dest.rows * Dest.cols;
@@ -117,10 +117,10 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 		}
 	}
 
-	Core::TimeSpan time2 = Core::getCurrentTime();
+//	Core::TimeSpan time2 = Core::getCurrentTime();
 
-	Core::TimeSpan timed = time2 - time1;
-	std::cout << "Time taken to execute _Dmatrix - " << timed << std::endl;
+//	Core::TimeSpan timed = time2 - time1;
+//	std::cout << "Time taken to execute _Dmatrix - " << timed << std::endl;
 	
 /*
 	std::cout << "Number of non zeros in _Dmatrix - " << _Dmatrix.nonZeros() << std::endl;
@@ -139,18 +139,39 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 	myfile << "Size of _Dmatrix - " << _Dmatrix.rows() << " X " << _Dmatrix.cols() << std::endl << std::endl;
     myfile << "_Dmatrix is - " << std::endl << MatrixXf(_Dmatrix) << std::endl << std::endl;
     */
+/*
+    ofstream myfile1;
+    myfile1.open ("DmatrixCPU.txt");
+    
+    myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
+    myfile1 << "Printing A" << "\n";
+//	myfile1 << "Number of non zeros in A - "<< A.nonZeros() << "\n";
+//	myfile1 << "Size of A - " << A.rows() << " X " << A.cols() << std::endl << std::endl;
+//    myfile1 << "A is - " << std::endl << MatrixXf(A) << std::endl << std::endl;
+
+    for (int k=0; k<_Dmatrix.outerSize(); ++k)
+    {    
+        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Dmatrix,k); it; ++it)
+        {
+            myfile1 <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+        }
+        myfile1 << "\n";
+    }
+
+    myfile1.close();
+  */
 	return _Dmatrix;
 }
 
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
-    std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
-    std::cout << "Inside function Hmatrix" << std::endl;
+  //  std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
+  //  std::cout << "Inside function Hmatrix" << std::endl;
     //std::cout << "kernel - " << std::endl << kernel << std::endl << std::endl;
     //std::cout << "Dest - "<< std::endl << Dest << std::endl << std::endl;
     
     // CPU computation times
-	Core::TimeSpan time1 = Core::getCurrentTime();
+	//Core::TimeSpan time1 = Core::getCurrentTime();
 
     int dim_dstvec = Dest.rows * Dest.cols;
 
@@ -176,13 +197,13 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
         }
     }
 
-	Core::TimeSpan time2 = Core::getCurrentTime();
+//	Core::TimeSpan time2 = Core::getCurrentTime();
 
-	Core::TimeSpan timed = time2 - time1;
-	std::cout << "Time taken to execute _Hmatrix - " << timed << std::endl;
+//	Core::TimeSpan timed = time2 - time1;
+//	std::cout << "Time taken to execute _Hmatrix - " << timed << std::endl;
 	
-	std::cout <<"Number of non zeros in _Hmatrix - "<< _Hmatrix.nonZeros() << std::endl;
-	std::cout << "Size of _Hmatrix - " << _Hmatrix.rows() << " X " << _Hmatrix.cols() << std::endl;
+//	std::cout <<"Number of non zeros in _Hmatrix - "<< _Hmatrix.nonZeros() << std::endl;
+//	std::cout << "Size of _Hmatrix - " << _Hmatrix.rows() << " X " << _Hmatrix.cols() << std::endl;
     //std::cout << "_Hmatrix is - " << std::endl << MatrixXf(_Hmatrix) << std::endl << std::endl << std::endl;
     
 /*
@@ -199,19 +220,40 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     
     myfile.close();
     */
+/*
+    ofstream myfile1;
+    myfile1.open ("HmatrixCPU.txt");
+    
+    myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
+    myfile1 << "Printing A" << "\n";
+//	myfile1 << "Number of non zeros in A - "<< A.nonZeros() << "\n";
+//	myfile1 << "Size of A - " << A.rows() << " X " << A.cols() << std::endl << std::endl;
+//    myfile1 << "A is - " << std::endl << MatrixXf(A) << std::endl << std::endl;
+
+    for (int k=0; k<_Hmatrix.outerSize(); ++k)
+    {    
+        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Hmatrix,k); it; ++it)
+        {
+            myfile1 <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+        }
+        myfile1 << "\n";
+    }
+
+    myfile1.close();
+*/
 	return _Hmatrix;
 }
 
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
     std::cout << "-----------------------------------------------------------------------------------------" << std::endl;
-    std::cout << "Inside function Mmatrix" << std::endl;
+ //   std::cout << "Inside function Mmatrix" << std::endl;
     //std::cout << "deltaX - " << deltaX << std::endl;
     //std::cout << "deltaY - " << deltaY << std::endl << std::endl;
     //std::cout << "Dest - "<< std::endl << Dest << std::endl << std::endl;
     
     // CPU computation times
-	Core::TimeSpan time1 = Core::getCurrentTime();
+//	Core::TimeSpan time1 = Core::getCurrentTime();
 
 	int dim_dstvec = Dest.rows * Dest.cols;
 
@@ -258,10 +300,10 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 		}
 	}
 
-	Core::TimeSpan time2 = Core::getCurrentTime();
+//	Core::TimeSpan time2 = Core::getCurrentTime();
 
-	Core::TimeSpan timed = time2 - time1;
-	std::cout << "Time taken to execute _Mmatrix - " << timed << std::endl << std::endl;
+//	Core::TimeSpan timed = time2 - time1;
+//	std::cout << "Time taken to execute _Mmatrix - " << timed << std::endl << std::endl;
 	
 /*
 	std::cout<<"Number of non zeros in _Mmatrix - "<< _Mmatrix.nonZeros() << std::endl;
@@ -282,6 +324,26 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     
     myfile.close();
     */
+/*    ofstream myfile1;
+    myfile1.open ("MmatrixCPU.txt");
+    
+    myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
+    myfile1 << "Printing A" << "\n";
+//	myfile1 << "Number of non zeros in A - "<< A.nonZeros() << "\n";
+//	myfile1 << "Size of A - " << A.rows() << " X " << A.cols() << std::endl << std::endl;
+//    myfile1 << "A is - " << std::endl << MatrixXf(A) << std::endl << std::endl;
+
+    for (int k=0; k<_Mmatrix.outerSize(); ++k)
+    {    
+        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
+        {
+            myfile1 <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+        }
+        myfile1 << "\n";
+    }
+
+    myfile1.close();
+*/
 	return _Mmatrix;
 }
 
@@ -301,15 +363,15 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
     MMatrix = Mmatrix(Dest, delta.x, delta.y);
 
     // CPU computation times
-	Core::TimeSpan time10 = Core::getCurrentTime();
+//	Core::TimeSpan time10 = Core::getCurrentTime();
 
     _DHF = DMatrix * (HMatrix * MMatrix);
-
+/*
 	Core::TimeSpan time11 = Core::getCurrentTime();
 
 	Core::TimeSpan timed2 = time11 - time10;
 	std::cout << "Time taken to execute to multiply - " << timed2 << std::endl;
-
+*/
     _DHF.makeCompressed();
 
     return _DHF;
@@ -376,8 +438,17 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 	Shifts.x = motionVec[imgindex].at<float>(0,2)*rfactor;
 	Shifts.y = motionVec[imgindex].at<float>(1,2)*rfactor;
 
+    Core::TimeSpan time3 = Core::getCurrentTime();
+    
 	A = ComposeSystemMatrix(Src, Dest, Shifts, rfactor, kernel, DMatrix, HMatrix, MMatrix);
 
+    Core::TimeSpan time4 = Core::getCurrentTime();
+
+	Core::TimeSpan timem = time4 - time3;
+    std::cout <<"==================================================" << std::endl;
+	std::cout << "Time taken to get A Matrix on CPU - " << timem << std::endl;
+    std::cout <<"==================================================" << std::endl;
+    
 	Normalization(A, A);
 
 	A2 = sparseMatSq(A);
@@ -403,17 +474,26 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 	
 /*
     ofstream myfile1;
-    myfile1.open ("Amatrix.txt");
+    myfile1.open ("AmatrixCPU.txt");
     
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
     myfile1 << "Printing A" << "\n";
-	myfile1 << "Number of non zeros in A - "<< A.nonZeros() << "\n";
-	myfile1 << "Size of A - " << A.rows() << " X " << A.cols() << std::endl << std::endl;
-    myfile1 << "A is - " << std::endl << MatrixXf(A) << std::endl << std::endl;
-    
+//	myfile1 << "Number of non zeros in A - "<< A.nonZeros() << "\n";
+//	myfile1 << "Size of A - " << A.rows() << " X " << A.cols() << std::endl << std::endl;
+//    myfile1 << "A is - " << std::endl << MatrixXf(A) << std::endl << std::endl;
+
+    for (int k=0; k<A.outerSize(); ++k)
+    {    
+        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(A,k); it; ++it)
+        {
+            myfile1 <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
+        }
+        myfile1 << "\n";
+    }
+
     myfile1.close();
-    
-    ofstream myfile2;
+  */  
+/*    ofstream myfile2;
     myfile2.open ("DHFmatrix.txt");
     
     myfile2 << "-----------------------------------------------------------------------------------------" << std::endl;
@@ -421,8 +501,8 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
     myfile2 << "DHF is - " << std::endl << DHF[0] << std::endl << std::endl;
     
     myfile2.close();
-
 */
+
 }
 
 
@@ -459,9 +539,9 @@ int main(int argc, char** argv)
 
     for (size_t i = 0;i < image_count;i++)
     {
-        Src[i] = cv::imread("../Images/Test/LR_000" + 1 + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+        Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
         //Src[i] = (Mat_<float>(5,5) << 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1);
-        //Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
+//         Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
         
 	    if(! Src[i].data)
             std::cerr<<"No files can be found!"<<std::endl;

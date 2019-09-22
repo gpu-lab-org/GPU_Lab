@@ -902,6 +902,19 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
     std::cout <<"---------------------------------------------------------------------------------" << std::endl << std::endl << std::endl;
 
     /*
+    // Log computation
+    std::ofstream log1("Dmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log1 << timet1 << std::endl;
+
+    std::ofstream log2("Hmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log2 << timet2 << std::endl;
+
+    std::ofstream log3("Mmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log3 << timet3 << std::endl;
+
+    std::ofstream log4("DHFmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log4 << timet4 << std::endl;
+    
     // Print on console
 
     // Setup CPU Result matrix

@@ -167,30 +167,46 @@ __kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global int* N
 		if(neighborUL >= 0 && neighborUL < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
-            NZ_values   [i*countY*4 + j*4]    = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX)); 
-            NZ_Rows     [i*countY*4 + j*4]    = index;
-            NZ_Columns  [i*countY*4 + j*4]    = neighborUL;
-        }   
+			float tmp = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX));
+			if(tmp != 0)
+            {
+				NZ_values   [i*countY*4 + j*4]    = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX)); 
+            	NZ_Rows     [i*countY*4 + j*4]    = index;
+            	NZ_Columns  [i*countY*4 + j*4]    = neighborUL;
+			}        
+		}   
 		if(neighborUR >= 0 && neighborUR < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX)));
+			float tmp = (i+(deltaY)+1-(i+deltaY))*(j+deltaX-(j+(deltaX)));
+			if(tmp != 0)
+            {
             NZ_values   [i*countY*4 + j*4+1]  = (i+(deltaY)+1-(i+deltaY))*(j+deltaX-(j+(deltaX))); 
             NZ_Rows     [i*countY*4 + j*4+1]  = index;
             NZ_Columns  [i*countY*4 + j*4+1]  = neighborUR;
+			}
         }
 		if(neighborBR >= 0 && neighborBR < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
+			float tmp = (i+deltaY-(i+(deltaY)))*(j+deltaX-(j+(deltaX)));
+			if(tmp != 0)
+            {
             NZ_values   [i*countY*4 + j*4+2]  = (i+deltaY-(i+(deltaY)))*(j+deltaX-(j+(deltaX)));
             NZ_Rows     [i*countY*4 + j*4+2]  = index;
             NZ_Columns  [i*countY*4 + j*4+2]  = neighborBR;
+			}
         }
 		if(neighborBL >= 0 && neighborBL < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborBL) = (i+deltaY-(i+std::floor(deltaY)))*(j+std::floor(deltaX)+1-(j+deltaX));
+			float tmp = (i+deltaY-(i+(deltaY)))*(j+(deltaX)+1-(j+deltaX));
+			if(tmp != 0)
+            {
             NZ_values   [i*countY*4 + j*4+3]  = (i+deltaY-(i+(deltaY)))*(j+(deltaX)+1-(j+deltaX));
             NZ_Rows     [i*countY*4 + j*4+3]  = index;
             NZ_Columns  [i*countY*4 + j*4+3]  = neighborBL;
+			}
         }
 	}
 }

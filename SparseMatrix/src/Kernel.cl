@@ -46,7 +46,7 @@ __kernel void SuperAwesome_D_Row_Pointer (uint rfactor, __global int* NZ_Row_Poi
  * SuperAwesome_H_Matrix :
  * Description - Compute the Values, Columns and Rows vectors of the H-Matrix as required for the Sparse CRS or CLS representation.
 */
-__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global int* NZ_Row_Offset, __global float* NZ_values, __global int* NZ_Columns, uint kernel_rows, uint kernel_cols) {
+__kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global float* NZ_values, __global int* NZ_Columns, uint kernel_rows, uint kernel_cols) {
 
     size_t i = get_global_id(0);                                    // the i'th row
 	size_t j = get_global_id(1);                                    // the j'th column
@@ -64,7 +64,7 @@ __kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global int*
 	uint kernelSize = kernel_rows*kernel_cols;
 
     // Row indexing Offset to handle matrix to buffer representation
-    int row_offset =  NZ_Row_Offset[index];
+    int row_offset =  index*kernelSize;
 
 	int k = 0;
     for (int m = 0; m < kernel_rows; m++)
@@ -75,7 +75,7 @@ __kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global int*
             if ( ((int)i)-radius_y+m >= 0 && ((int)i)-radius_y+m < Dest_rows && ((int)j)-radius_x+n >= 0 && ((int)j)-radius_x+n < Dest_cols && loc < dim_dstvec)
             {
 			    //_Hmatrix.coeffRef(index,loc) = kernel.at<float>(m,n);
-				NZ_values[row_offset + k] = gauss_kernel[m*kernel_rows +n];
+				NZ_values[row_offset + k] = gauss_kernel[m*kernel_rows + n];
 				NZ_Columns[row_offset + k] = loc;
 				k++;
 			}
@@ -83,10 +83,24 @@ __kernel void SuperAwesome_H_Matrix (__global float* gauss_kernel, __global int*
     }
 }
 
+
 /*
  * SuperAwesome_H_Row_Pointer :
- * Description - Compute the Row pointer vector of the Sparse H-Matrix for the Sparse CRS representation.
+ * Description - Compute the Row pointer vector of the Sparse D-Matrix for the Sparse CRS representation.
 */
+__kernel void SuperAwesome_H_Row_Pointer (uint kernel_rows, uint kernel_cols, __global int* NZ_Row_Pointer) {
+
+    size_t i = get_global_id(0); 
+    uint kernelSize = kernel_rows * kernel_cols;                                                                    // The row order
+
+    NZ_Row_Pointer[i] = i * kernelSize;
+}
+
+/*
+ * SuperAwesome_H_Row_Pointer :
+ * Description - Compute the EXACT MEMORY required for Row pointer vector of the Sparse H-Matrix for the Sparse CRS representation.
+*/
+/*
 __kernel void SuperAwesome_H_Row_Pointer (int psfW, uint Dest_rows, uint Dest_cols, __global int* NZ_Row_Pointer) {
 
     size_t i    = get_global_id(0);                         // Get the index of Row Pointer
@@ -174,6 +188,7 @@ __kernel void SuperAwesome_H_Row_Pointer (int psfW, uint Dest_rows, uint Dest_co
         }
     }
 }
+*/
 
 /*
  * SuperAwesome_M_Matrix :

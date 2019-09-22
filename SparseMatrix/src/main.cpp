@@ -542,7 +542,7 @@ int main(int argc, char** argv)
 
     for (size_t i = 0;i < image_count;i++)
     {
-        //Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (j+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+        Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
 
 	    if(! Src[i].data)
             std::cerr<<"No files can be found!"<<std::endl;

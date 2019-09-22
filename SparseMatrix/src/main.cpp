@@ -55,6 +55,10 @@ std::vector<cl::Platform> platforms;
 
 float zero = 0.0f;
 
+uint timeGPU_D;
+uint timeGPU_H;
+uint timeGPU_M;
+
 //=======================================================================
 //
 // MOTION MAT FUNC
@@ -133,7 +137,7 @@ void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, 
 
 // TODO change return type and function prototype so as to return a viennacl compressed matrix
 
-Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
+viennacl::compressed_matrix<float> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfactor)
 {
     // For Timimg Analysis
     cl::Event event_kernel1;
@@ -150,9 +154,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 	std::size_t dim_srcvec  = Src.rows * Src.cols;                      // Number of Rows in D Matrix
     std::size_t dim_dstvec  = Dest.rows * Dest.cols;                    // Number of Columns in D Matrix
     std::size_t count       = Src.rows * Src.cols * rfactor * rfactor;  // Number of non zero elements
-
-    // Create a new Eigen Matrix
-    Eigen::SparseMatrix<float,Eigen::RowMajor, int> _EDmatrix(Src.rows*Src.cols, Dest.rows*Dest.cols);
 
     // Create host memory
     std::vector<float>      h_GpuV (count);
@@ -194,7 +195,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 
     // TODO remove later during delivery - Read into buffers to print
     // Read into buffer to print
-    que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_srcvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL);
+    // que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_srcvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL);
 
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_D_kernel(program, "SuperAwesome_D_Matrix");
@@ -211,8 +212,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     event_kernel2.wait();
 
     // TODO remove later during delivery - Read into buffers to print
-    que.enqueueReadBuffer(NZ_values,  true, 0, count *sizeof (float), h_GpuV.data(),  NULL, NULL);
-    que.enqueueReadBuffer(NZ_Columns, true, 0, count *sizeof (cl_uint), h_GpuC.data(),NULL, NULL);
+    // que.enqueueReadBuffer(NZ_values,  true, 0, count *sizeof (float), h_GpuV.data(),  NULL, NULL);
+    // que.enqueueReadBuffer(NZ_Columns, true, 0, count *sizeof (cl_uint), h_GpuC.data(),NULL, NULL);
 
     // Initialise the compressed D matrix
     viennacl::compressed_matrix<float> _Dmatrix(dim_srcvec, dim_dstvec, count);
@@ -256,7 +257,10 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     event_copy2.wait();
     event_copy3.wait();
 
+    /* -------------------------------------- DEBUG INFO -------------------------------------- */   
+
     /* DEBUG CODE START */
+    
     // TODO Test code to remove
     if(copyh1 == CL_SUCCESS)
         std::cout << "copyh1 value " << copyh1 << "\n";
@@ -279,8 +283,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     std::vector<unsigned int> test_values3 (count);
     memset(test_values3.data(), 0, (dim_srcvec + 1) * sizeof(cl_uint));
     que.enqueueReadBuffer(_Dmatrix_Row_pointer,  true, 0, (dim_srcvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL);
-
-    /* -------------------------------------- DEBUG INFO -------------------------------------- */   
+    
 
     /* TIMING ANALYSIS START */
 
@@ -295,37 +298,31 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 	Core::TimeSpan time8    = OpenCL::getElapsedTime(event_copy3);
 
 
-    std::cout <<"Kernel time for Val, Columns and Row computation       : " << time1 << std::endl;
+    std::cout <<"Kernel time for Row Pointer computation                : " << time1 << std::endl;
     std::cout <<"Write and que time for Values Buffer                   : " << time2 << std::endl;
     std::cout <<"Write and que time for Columns Buffer                  : " << time3 << std::endl;
     std::cout <<"Write and que time for RowPointers Buffer              : " << time4 << std::endl;
-    std::cout <<"Kernel time for Row Pointer computation                : " << time5 << std::endl;
+    std::cout <<"Kernel time for Val and Columns computation            : " << time5 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Values      : " << time6 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Columns     : " << time7 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix RowPointers : " << time8 << std::endl;
 
-	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7+time8;
+	Core::TimeSpan timeGPUD = time1+time2+time3+time4+time5+time6+time7+time8;
+    //timeGPU_D = timeGPUD;
 
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
-    std::cout <<"Total Time for computation of D matrix on the GPU      : "<< timeGPU << std::endl;
+    std::cout <<"Total Time for computation of D matrix on the GPU          : "<< timeGPUD << std::endl;
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
     /* PRINT MATRIX */
 
     // Print D Matrix values
-    /*
+    
     int k = 0;
     for (int i = 0; i < count; i++)
     {
         std::cout << "(" << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "--> ; ( " << test_values2[i]  <<")" << " ---> " << test_values1[i] << "\n";
         //std::cout << "(" << h_GpuR[i] << ", " << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "\t";
-
-        k++;
-        if (k==Dest.cols)
-        {
-            std::cout << "\n";
-            k=0;
-        }
     }
  
 
@@ -346,7 +343,24 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     } 
     */
 
-	return _EDmatrix;
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_DMat(dim_srcvec);
+
+    //Copy from returned device to host memory
+    copy(_Dmatrix, cpu_DMat );
+
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_DMat.begin(); it != cpu_DMat.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << "\t"; 
+        }
+        std::cout << "\n";
+        it_count++;
+    }
+
+	return _Dmatrix;
 }
 
 
@@ -355,7 +369,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
 // H __ MATRIX
 //
 //=======================================================================
-Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
+viennacl::compressed_matrix<float> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel)
 {
     // For timimg Analysis
     cl::Event event_kernel1;
@@ -369,9 +383,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     cl::Event event_write4;
 
     std::size_t dim_dstvec = Dest.rows * Dest.cols;
-
-    // Create a new Eigen Matrix
-	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _EHmatrix(dim_dstvec, dim_dstvec);
 
  	uint kernelSize = kernel.rows * kernel.cols;
 	int radius_y = int((kernel.rows-1)/2);
@@ -407,7 +418,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
         for (int n = 0; n < kernel.cols; n++)
         {
             vkernel[m*kernel.cols +n] = kernel.at<float>(m,n);
-            std::cout<< vkernel[m*kernel.cols +n];            
+            //std::cout<< vkernel[m*kernel.cols +n];            
         }
     } 
 
@@ -439,7 +450,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 
     // TODO remove later during delivery - Read into buffers to print
     // Read into buffer to compute Rowoffset buffer
-    que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL); 
+    // que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL); 
 
     // New kernel object for computation of H matrix
 	cl::Kernel SuperAwesome_H_kernel(program, "SuperAwesome_H_Matrix");
@@ -458,8 +469,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     //event_kernel2.wait();
 
     // TODO remove later during delivery - Read into buffers to print
-    que.enqueueReadBuffer(NZ_Values,  true, 0, count *sizeof (float),   h_GpuV.data(),  NULL, NULL);
-    que.enqueueReadBuffer(NZ_Columns, true, 0, count *sizeof (cl_uint), h_GpuC.data(),  NULL, NULL);
+    // que.enqueueReadBuffer(NZ_Values,  true, 0, count *sizeof (float),   h_GpuV.data(),  NULL, NULL);
+    // que.enqueueReadBuffer(NZ_Columns, true, 0, count *sizeof (cl_uint), h_GpuC.data(),  NULL, NULL);
     
     // Initialise the compressed D matrix
     viennacl::compressed_matrix<float> _Hmatrix(dim_dstvec, dim_dstvec, count);
@@ -504,7 +515,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     event_copy3.wait();
 
     /* -------------------------------------- DEBUG INFO -------------------------------------- */  
-
+    
     // TODO Test code to remove
     if(copyh1 == CL_SUCCESS)
         std::cout << "copyh1 value " << copyh1 << "\n";
@@ -527,42 +538,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     std::vector<unsigned int> test_values3 (count);
     memset(test_values3.data(), 0, (dim_dstvec + 1) * sizeof(cl_uint));
     que.enqueueReadBuffer(_Hmatrix_Row_pointer,  true, 0, (dim_dstvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL); 
-
-   /* TESTING MULTIPLICATION START CODE - To be moved to ComposeSystemMatrix() */
-
-    // Setup Identity matrix for testing Multiplication
-    // Setup CPU matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_Imatrix(dim_dstvec);
-
-    // Copy data to CPU matrix - Sequential and time consuming
-    for (unsigned int i = 0; i < dim_dstvec; i++)
-    {
-        cpu_sparse_Imatrix[i][i] = 1;
-    }
-
-    // Create ViennaCl compressed Identity matrix for testing
-    viennacl::compressed_matrix<float> gpu_sparse_Imatrix(dim_dstvec, dim_dstvec);
-
-    // Copy Identity matrix from CPU to device memory
-    copy(cpu_sparse_Imatrix, gpu_sparse_Imatrix );
-
-    // Create ViennaCl compressed Result matrix for testing 
-    viennacl::compressed_matrix<float> gpu_sparse_Rmatrix(dim_dstvec, dim_dstvec);
-
-    // ViennaCL sparse matrix- sparse matrix product
-    //gpu_sparse_Rmatrix = viennacl::linalg::prod(_Mmatrix, gpu_sparse_Imatrix);
-
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_Rmatrix(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(gpu_sparse_Rmatrix, cpu_sparse_Rmatrix );
-
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_hmatrix(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(_Hmatrix, cpu_sparse_hmatrix );
+    
+    
 
     /* TIMING ANALYSIS START */
 
@@ -578,24 +555,25 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 	Core::TimeSpan time8    = OpenCL::getElapsedTime(event_copy2);
 	Core::TimeSpan time9    = OpenCL::getElapsedTime(event_copy3);
 
-    std::cout <<"Kernel time for Val, Columns and Row computation       : " << time1 << std::endl;
+    std::cout <<"Kernel time for Row Pointer computation                : " << time1 << std::endl;
     std::cout <<"Write and que time for Row Pointer Buffer              : " << time2 << std::endl;
     std::cout <<"Write and que time for Values Buffer                   : " << time3 << std::endl;
     std::cout <<"Write and que time for Columns Buffer                  : " << time4 << std::endl;
     std::cout <<"Write and que time for Kernel Buffer                   : " << time5 << std::endl;
-    std::cout <<"Kernel time for Row Pointer computation                : " << time6 << std::endl;
+    std::cout <<"Kernel time for Val, Columns and Row computation       : " << time6 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Values      : " << time7 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Columns     : " << time8 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix RowPointers : " << time9 << std::endl;
 
-	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7+time8+time9;
+	Core::TimeSpan timeGPUH = time1+time2+time3+time4+time5+time6+time7+time8+time9;
+    //timeGPU_H = timeGPUH;
 
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
-    std::cout <<"Total Time for computation of M matrix on the GPU      : "<< timeGPU << std::endl;
+    std::cout <<"Total Time for computation of H matrix on the GPU      : "<< timeGPUH << std::endl;
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
     /* PRINT MATRIX */
-    /*
+    
     int k = 0;
     for (int i = 0; i < count; i++)
     {
@@ -630,8 +608,26 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
         }
         it_count++;
     }
+    */
 
-	return _EHmatrix;
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_HMat(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(_Hmatrix, cpu_HMat );
+
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_HMat.begin(); it != cpu_HMat.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << "\t"; 
+        }
+        std::cout << "\n";
+        it_count++;
+    }
+
+	return _Hmatrix;
 }
 
 
@@ -640,7 +636,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 // M__MATRIX
 //
 //=======================================================================
-Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
+viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
     // For timimg Analysis
     cl::Event event_kernel1;
@@ -658,8 +654,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     std::size_t count       = Dest.rows * Dest.cols * 4;
     std::size_t size        = count *sizeof (float);
     uint buffer_size        = 0;
-
-	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _EMmatrix(dim_dstvec, dim_dstvec);
 
     // Allocate space for output data from GPU on the host
     std::vector<float>      h_GpuV (count);
@@ -763,8 +757,11 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     event_copy2.wait();
     event_copy3.wait();
 
+    /* -------------------------------------- DEBUG INFO -------------------------------------- */  
+
     // DEBUG CODE START 
     // TODO Test code to remove
+    
     if(copyh1 == CL_SUCCESS)
         std::cout << "copyh1 value " << copyh1 << "\n";
 
@@ -785,45 +782,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 
     std::vector<unsigned int> test_values3 (count);
     memset(test_values3.data(), 0, (dim_dstvec + 1) * sizeof(cl_uint));
-    que.enqueueReadBuffer(_Mmatrix_Row_pointer,  true, 0, (dim_dstvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL);
-
-   /* TESTING MULTIPLICATION START CODE - To be moved to ComposeSystemMatrix() */
-
-    // Setup Identity matrix for testing Multiplication
-    // Setup CPU matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_Imatrix(dim_dstvec);
-
-    // Copy data to CPU matrix - Sequential and time consuming
-    for (unsigned int i = 0; i < dim_dstvec; i++)
-    {
-        cpu_sparse_Imatrix[i][i] = 1;
-    }
-
-    // Create ViennaCl compressed Identity matrix for testing
-    viennacl::compressed_matrix<float> gpu_sparse_Imatrix(dim_dstvec, dim_dstvec);
-
-    // Copy Identity matrix from CPU to device memory
-    copy(cpu_sparse_Imatrix, gpu_sparse_Imatrix );
-
-    // Create ViennaCl compressed Result matrix for testing 
-    viennacl::compressed_matrix<float> gpu_sparse_Rmatrix(dim_dstvec, dim_dstvec);
-
-    // ViennaCL sparse matrix- sparse matrix product
-    gpu_sparse_Rmatrix = viennacl::linalg::prod(_Mmatrix, gpu_sparse_Imatrix);
-
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_Rmatrix(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(gpu_sparse_Rmatrix, cpu_sparse_Rmatrix );
-
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_mmatrix(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(_Mmatrix, cpu_sparse_mmatrix );
-
-    /* -------------------------------------- DEBUG INFO -------------------------------------- */   
+    que.enqueueReadBuffer(_Mmatrix_Row_pointer,  true, 0, (dim_dstvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL); 
+    
 
     // Timing Analysis
 
@@ -840,19 +800,20 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     std::cout <<"Write and que time for Row Pointer Buffer              : " << time2 << std::endl;
     std::cout <<"Write and que time for Values Buffer                   : " << time3 << std::endl;
     std::cout <<"Write and que time for Columns Buffer                  : " << time4 << std::endl;
-    std::cout <<"Kernel time for Row Pointer                            : " << time5 << std::endl;
+    std::cout <<"Kernel time for Row Pointer computation                : " << time5 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Values      : " << time6 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix Columns     : " << time7 << std::endl;
     std::cout <<"Copy time from kernel to compressed matrix RowPointers : " << time8 << std::endl;
 
-	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7;
+	Core::TimeSpan timeGPUM = time1+time2+time3+time4+time5+time6+time7;
+    //timeGPU_M = timeGPUM;
 
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
-    std::cout <<"Total Time for computation of H matrix on the GPU      : "<< timeGPU << std::endl;
+    std::cout <<"Total Time for computation of M matrix on the GPU      : "<< timeGPUM << std::endl;
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
     /* PRINT MATRIX */
-
+    
     int k = 0;
     for (int i = 0; i < count; i++)
     {
@@ -861,6 +822,11 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 
     }
 
+    for (int i = 0; i < dim_dstvec+1; i++)
+    {
+        std::cout << "i is :" << i << " ---> Row Pointer values from (" << h_GpuRp[i] << ")  ---> ViennaCl Matrix values in RowPointer " << test_values3[i] << "\n";
+    }
+    
     /*
     for (int k=0; k<_Mmatrix.outerSize(); ++k)
     {    
@@ -871,14 +837,8 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
         }
         std::cout << "\n";
     }
-    */
 
-    for (int i = 0; i < dim_dstvec+1; i++)
-    {
-        std::cout << "i is :" << i << " ---> Row Pointer values from (" << h_GpuRp[i] << ")  ---> ViennaCl Matrix values in RowPointer " << test_values3[i] << "\n";
-    }
-
-    //Print multiplication result
+    //
     int it_count = 0;
     for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_sparse_Rmatrix.begin(); it != cpu_sparse_Rmatrix.end(); ++it)
     {
@@ -888,8 +848,26 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
         }
         it_count++;
     }
+*/
 
-	return _EMmatrix;
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_MMat(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(_Mmatrix, cpu_MMat );
+
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_MMat.begin(); it != cpu_MMat.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << "\t"; 
+        }
+        std::cout << "\n";
+        it_count++;
+    }
+
+	return _Mmatrix;
 }
 
 
@@ -898,7 +876,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
 // COMPOSE SYSTEM MATRIX FUNC
 //
 //=======================================================================
-Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& DMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &HMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &MMatrix)
+void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel)
 {
 
 	int dim_srcvec = Src.rows * Src.cols;
@@ -906,56 +884,50 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 
     //float maxPsfRadius = 3 * rfactor * psfWidth;
 
-    Eigen::SparseMatrix<float,Eigen::RowMajor, int> _DHF(dim_srcvec, dim_dstvec);
+	// Do calculation on the host side
+    viennacl::compressed_matrix<float> DMatrix = Dmatrix(Src, Dest, rfactor);
 
 	// Do calculation on the host side
+    viennacl::compressed_matrix<float> HMatrix = Hmatrix(Dest, kernel);
+
+	// Do calculation on the host side
+    viennacl::compressed_matrix<float> MMatrix = Mmatrix(Dest, delta.x, delta.y);
+
+    // CPU computation times
 	Core::TimeSpan time1 = Core::getCurrentTime();
-    DMatrix = Dmatrix(Src, Dest, rfactor);
-    Core::TimeSpan time2 = Core::getCurrentTime();
 
-	Core::TimeSpan timed = time2 - time1;
-    std::cout <<"==================================================" << std::endl;
-	std::cout << "Time taken to execute DMatrix - " << timed << std::endl;
-    std::cout <<"==================================================" << std::endl;
+    // ViennaCL sparse matrix- sparse matrix product
+    viennacl::compressed_matrix<float> _tempHM =  viennacl::linalg::prod(HMatrix, MMatrix);
+    viennacl::compressed_matrix<float> _DHF    =  viennacl::linalg::prod(DMatrix, _tempHM);
 
-	// Do calculation on the host side
-	Core::TimeSpan time5 = Core::getCurrentTime();
-    HMatrix = Hmatrix(Dest, kernel);
-    Core::TimeSpan time6 = Core::getCurrentTime();
+	Core::TimeSpan time2 = Core::getCurrentTime();
 
-	Core::TimeSpan timeh = time6 - time5;
-    std::cout <<"==================================================" << std::endl;
-	std::cout << "Time taken to execute HMatrix - " << timeh << std::endl;
-    std::cout <<"==================================================" << std::endl;
+	Core::TimeSpan timet = time2 - time1;
+	std::cout << "Time taken to multiply - " << timet << std::endl;
 
-	// Do calculation on the host side
-	Core::TimeSpan time3 = Core::getCurrentTime();
-    MMatrix = Mmatrix(Dest, delta.x, delta.y);
-    Core::TimeSpan time4 = Core::getCurrentTime();
+	//std::cout << "Total time to compute A is - " << timeGPU_D + timeGPU_H + timeGPU_M + timet << std::endl;
 
-	Core::TimeSpan timem = time4 - time3;
-    std::cout <<"==================================================" << std::endl;
-	std::cout << "Time taken to execute MMatrix - " << timem << std::endl;
-    std::cout <<"==================================================" << std::endl;
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_DHF(dim_srcvec);
 
-    _DHF = DMatrix * (HMatrix * MMatrix);
+    //Copy from returned device to host memory
+    copy(_DHF, cpu_DHF );
 
-    _DHF.makeCompressed();
+    std::cout <<"---------------------------------------------------------------------------------" << std::endl;
+    std::cout <<"                               A Computation complete                            " << std::endl;
+    std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
-    return _DHF;
-}
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_DHF.begin(); it != cpu_DHF.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << "\t"; 
+        }
+        std::cout << "\n";
+        it_count++;
+    }
 
-void Normalization(Eigen::SparseMatrix<float, Eigen::RowMajor, int>& src, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& dst)
-{
-	for(Eigen::Index c = 0; c < src.rows(); ++c)
-	{
-		float colsum = 0.0;
-		for(typename Eigen::SparseMatrix<float, Eigen::RowMajor, int>::InnerIterator itL(src, c); itL; ++itL)
-			 colsum += itL.value();
-
-		for(typename Eigen::SparseMatrix<float, Eigen::RowMajor, int>::InnerIterator itl(src, c); itl; ++itl)
-			dst.coeffRef(itl.row(), itl.col()) = src.coeffRef(itl.row(), itl.col())/colsum;
-	}
 }
 
 void Gaussiankernel(cv::Mat& dst)
@@ -975,28 +947,7 @@ void Gaussiankernel(cv::Mat& dst)
 	dst = dst/normF;
 }
 
-
-Eigen::SparseMatrix<float, Eigen::RowMajor, int> sparseMatSq(Eigen::SparseMatrix<float, Eigen::RowMajor, int>& src)
-{
-
-	Eigen::SparseMatrix<float,Eigen::RowMajor, int> A2(src.rows(), src.cols());
-
-	for (int k = 0; k < src.outerSize(); ++k)
-	{
-	   	for (typename Eigen::SparseMatrix<float, Eigen::RowMajor, int>::InnerIterator innerit(src,k); innerit; ++innerit)
-	   	{
-	   		//A2.insert(innerit.row(), innerit.col()) = innerit.value() * innerit.value();
-	   		A2.insert(k, innerit.index()) = innerit.value() * innerit.value();
-	   		//A2.insert(innerit.row(), innerit.col()) = 0;
-	   	}
-	}
-	A2.makeCompressed();
-	return A2;
-
-}
-
-
-void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& motionVec, cv::Mat &kernel, size_t rfactor, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& DMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &HMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int> &MMatrix, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& A, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& AT, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& A2, Eigen::SparseMatrix<float, Eigen::RowMajor, int>& AT2, std::vector<viennacl::compressed_matrix<float> >& DHF, std::vector<viennacl::compressed_matrix<float> >& DHFT, std::vector<viennacl::compressed_matrix<float> > &DHF2, std::vector<viennacl::compressed_matrix<float> > &DHFT2)
+void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& motionVec, cv::Mat &kernel, size_t rfactor)
 {
 
 	Gaussiankernel(kernel);
@@ -1005,31 +956,7 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 	Shifts.x = motionVec[imgindex].at<float>(0,2)*rfactor;
 	Shifts.y = motionVec[imgindex].at<float>(1,2)*rfactor;
 
-	A = ComposeSystemMatrix(Src, Dest, Shifts, rfactor, kernel, DMatrix, HMatrix, MMatrix);
-
-	Normalization(A, A);
-
-	A2 = sparseMatSq(A);
-
-	AT = A.transpose();
-
-	AT2 = A2.transpose();
-
-	// viennacl::compressed_matrix<float>tmp_vcl(A.rows(), A.cols(), A.nonZeros());
-	// viennacl::compressed_matrix<float>tmp_vclT(AT.rows(), AT.cols(), AT.nonZeros());
-
-	// viennacl::copy(A, tmp_vcl);
-	// viennacl::copy(AT, tmp_vclT);
-
-	// DHF.push_back(tmp_vcl);
-	// DHFT.push_back(tmp_vclT);
-
-	// viennacl::copy(A2, tmp_vcl);
-	// viennacl::copy(AT2, tmp_vclT);
-
-	// DHF2.push_back(tmp_vcl);
-	// DHFT2.push_back(tmp_vclT);
-
+	ComposeSystemMatrix(Src, Dest, Shifts, rfactor, kernel);
 
 }
 
@@ -1092,7 +1019,7 @@ int main(int argc, char** argv)
 
 	//********************************************************************
 
-    size_t image_count = 1;// M //TODO///////////// PLEASE CHANGE THIS WHEN USING
+    size_t image_count = 1;// M
     int rfactor = 2;//magnification factor
     float psfWidth = 3;
 
@@ -1101,20 +1028,6 @@ int main(int argc, char** argv)
     cv::Mat dest;
     cv::Mat kernel = cv::Mat::zeros(cv::Size(psfWidth, psfWidth), CV_32F);
 
-
-    std::vector<viennacl::compressed_matrix<float> > DHF; 
-    std::vector<viennacl::compressed_matrix<float> > DHFT; 
-    std::vector<viennacl::compressed_matrix<float> > DHF2; 
-    std::vector<viennacl::compressed_matrix<float> > DHFT2; 
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> DMatrix;
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> HMatrix;
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> MMatrix;
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> AT;  // transpose of matrix A_i
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> A;  // matrix A_i
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> AT2; //transpose of matrix B_i
-    Eigen::SparseMatrix<float, Eigen::RowMajor, int> A2; // matrix B_i
-
-
     /***** Generate motion parameters ******/
 
     std::vector<cv::Mat> motionvec;
@@ -1122,10 +1035,7 @@ int main(int argc, char** argv)
 
     for (size_t i = 0;i < image_count;i++)
     {
-        //Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
-        // TODO - To remove
-        Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
-        //Src[i] = (Mat_<float>(5,5) << 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1);
+        Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
    
 	    if(! Src[i].data)
                 std::cerr<<"No files can be found!"<<std::endl;
@@ -1137,7 +1047,7 @@ int main(int argc, char** argv)
 	    cv::resize(Src[0], dest, dest.size(), 0, 0, INTER_CUBIC);
 
         /***** Generate Matrices A = DHF, inverse A = DHFT and B = DHF2, invere B = DHFT2 ******/
-	    GenerateAT(Src[i], dest, i, motionvec, kernel, rfactor, DMatrix, HMatrix, MMatrix, A, AT, A2, AT2, DHF, DHFT, DHF2, DHFT2);
+	    GenerateAT(Src[i], dest, i, motionvec, kernel, rfactor);
 
 	    std::cout<<"Matrices of image "<<(i+1)<<" done."<<std::endl;
     }

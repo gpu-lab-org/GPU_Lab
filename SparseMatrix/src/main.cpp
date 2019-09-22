@@ -375,10 +375,23 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 	std::cout << "Total time taken to execute _DHFmatrix - " << timet << " seconds" << std::endl << std::endl;
     std::cout << "-----------------------------------------------------------------" << std::endl << std::endl;
 
+/*
+// Log for average times
+    std::ofstream log1("Dmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log1 << timet1 << std::endl;
+
+    std::ofstream log2("Hmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log2 << timet2 << std::endl;
+
+    std::ofstream log3("Mmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log3 << timet3 << std::endl;
+
+    std::ofstream log4("DHFmatrix_time.txt", std::ios_base::app | std::ios_base::out);
+    log4 << timet4 << std::endl;
+	
     ofstream myfile1;
     myfile1.open ("DHFmatrixCPU.txt");
   
-/*
     // Debug Info
 
     myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;

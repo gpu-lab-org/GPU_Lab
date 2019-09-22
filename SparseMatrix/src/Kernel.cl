@@ -97,8 +97,6 @@ __kernel void SuperAwesome_H_Row_Pointer (int psfW, uint Dest_rows, uint Dest_co
     int y           = 0;
     int psfWidth    = psfW;
 
-    printf("xact, yact \n", xact, yact );
-
     // Taking care for the first element of the Row Pointer vector which is zero.
     if ( (xact == 0) && (yact == 0) )
     {
@@ -181,7 +179,7 @@ __kernel void SuperAwesome_H_Row_Pointer (int psfW, uint Dest_rows, uint Dest_co
  * SuperAwesome_M_Matrix :
  * Description - Compute the Values, Columns and Rows vectors of the M-Matrix as required for the Sparse CRS or CLS representation.
 */
-__kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global float* NZ_values, __global int* NZ_Columns, __global int* NZ_Row_Pointer) {
+__kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global float* NZ_values, __global int* NZ_Columns) {
        
     size_t i = get_global_id(0);                                // the Ith loop we removed
 	size_t j = get_global_id(1);                                // the Jth loop we removed
@@ -204,21 +202,18 @@ __kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global float*
 			//CPU - _Mmatrix.coeffRef(index, neighborUL) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+std::floor(deltaX)+1-(j+deltaX));
             NZ_values   [i*countY*4 + j*4]    = (i+(deltaY)+1-(i+deltaY))*(j+(deltaX)+1-(j+deltaX)); 
             NZ_Columns  [i*countY*4 + j*4]    = neighborUL;
-            R_Pointer_cnt++;
         }   
 		if(neighborUR >= 0 && neighborUR < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborUR) = (i+std::floor(deltaY)+1-(i+deltaY))*(j+deltaX-(j+std::floor(deltaX)));
             NZ_values   [i*countY*4 + j*4+1]  = (i+(deltaY)+1-(i+deltaY))*(j+deltaX-(j+(deltaX))); 
             NZ_Columns  [i*countY*4 + j*4+1]  = neighborUR;
-            R_Pointer_cnt++;
         }
 		if(neighborBR >= 0 && neighborBR < dim_dstvec)
         {
 			//CPU - _Mmatrix.coeffRef(index, neighborBR) = (i+deltaY-(i+std::floor(deltaY)))*(j+deltaX-(j+std::floor(deltaX)));
             NZ_values   [i*countY*4 + j*4+2]  = (i+deltaY-(i+(deltaY)))*(j+deltaX-(j+(deltaX)));
             NZ_Columns  [i*countY*4 + j*4+2]  = neighborBR;
-            R_Pointer_cnt++;
         }
 		if(neighborBL >= 0 && neighborBL < dim_dstvec)
         {
@@ -227,7 +222,16 @@ __kernel void SuperAwesome_M_Matrix (float deltaX, float deltaY, __global float*
             NZ_Columns  [i*countY*4 + j*4+3]  = neighborBL;
             R_Pointer_cnt++;
         }
-
-        NZ_Row_Pointer[i] = R_Pointer_cnt;
 	}
+}
+
+/*
+ * SuperAwesome_M_Row_Pointer :
+ * Description - Compute the Row pointer vector of the Sparse D-Matrix for the Sparse CRS representation.
+*/
+__kernel void SuperAwesome_M_Row_Pointer (__global int* NZ_Row_Pointer) {
+
+    size_t i = get_global_id(0);                                                                                    // The row order
+
+    NZ_Row_Pointer[i] = i * 4;
 }

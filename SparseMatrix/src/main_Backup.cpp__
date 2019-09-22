@@ -198,7 +198,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     /*for ( int k =0; k<=16385; k++)
     {
         std::cout << OuterStart[k] << "\n" ;
-433
+
     } */
 
     typedef Eigen::Triplet<float> T;

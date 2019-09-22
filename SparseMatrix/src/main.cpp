@@ -192,6 +192,10 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
     // Wait until kernel1 is complete
     event_kernel1.wait();
 
+    // TODO remove later during delivery - Read into buffers to print
+    // Read into buffer to print
+    que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_srcvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL);
+
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_D_kernel(program, "SuperAwesome_D_Matrix");
 
@@ -323,6 +327,12 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Dmatrix(cv::Mat& Src, cv::Mat & 
             k=0;
         }
     }
+    */
+
+    for (int i = 0; i < dim_srcvec+1; i++)
+    {
+        std::cout << "i is :" << i << " ---> Row Pointer values from (" << h_GpuRp[i] << ")  ---> ViennaCl Matrix values in RowPointer " << test_values3[i] << "\n";
+    }
 
     /*
     for (k=0; k<_Dmatrix.outerSize(); ++k)
@@ -378,15 +388,12 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 
     // Allocate space for output data from GPU on the host
     std::vector<cl_uint>    h_GpuRp(dim_dstvec + 1);
-    std::vector<cl_uint>    h_GpuRo(dim_dstvec);
 
     // Allocate space (buffers) for output data on the device
-    cl::Buffer NZ_Row_Pointer   (context,CL_MEM_READ_WRITE,(dim_dstvec + 1) * sizeof(cl_uint));
-    cl::Buffer NZ_Row_Offset    (context,CL_MEM_READ_WRITE,dim_dstvec * sizeof(cl_uint));
+    cl::Buffer NZ_Row_Pointer    (context,CL_MEM_READ_WRITE,(dim_dstvec + 1) * sizeof(cl_uint));
 
     // Initialize host memory to 0 (0 being useful to debug if errors in V)
     memset(h_GpuRp.data(), 0, (dim_dstvec + 1) * sizeof(cl_uint));
-    memset(h_GpuRo.data(), 0, dim_dstvec * sizeof(cl_uint));
 
     // Initialize device memory
     que.enqueueWriteBuffer(NZ_Row_Pointer,  true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(),    NULL,   &event_write1);
@@ -412,28 +419,24 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     // Read into buffer to compute Rowoffset buffer
     que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, &event_read1);
 
-    // Compute the rowoffset in the buffer for each element
-    uint cuml_offset = 0; 
-    for (int n = 0; n < dim_dstvec; n++)
+    // Compute the rowpointer 
+    for (int n = 0; n <= dim_dstvec; n++)
     {
-        cuml_offset += h_GpuRp[n];
-        h_GpuRo[n] = cuml_offset;  
-        std::cout << "h_GpuRo Offset " << n << " is : " << h_GpuRo[n] << "\n";      
+        buffer_size += h_GpuRp[n];
+        h_GpuRp[n] = buffer_size;  
+        //std::cout << "h_GpuRp Offset " << n << " is : " << h_GpuRp[n] << "\n";  // TODO     
     }
-    
-    // Total number of nnz in H Matrix
-    buffer_size = cuml_offset + h_GpuRp[dim_dstvec];
-    std::cout << "buffer_size for Offset " << buffer_size << "\n";
+    //std::cout << "buffer_size for Offset " << buffer_size << "\n";  // TODO
 
     // Copy data into Row Offset Buffer
-    que.enqueueWriteBuffer(NZ_Row_Offset, true, 0, dim_dstvec *sizeof (cl_uint), h_GpuRo.data(), NULL, &event_write2);
+    que.enqueueWriteBuffer(NZ_Row_Pointer, true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(), NULL, &event_write2);
 
     // Wait until all write events complete
     event_write2.wait();
 
     // Compute total buffer size to be allocated to V, C and R buffers  
-    std::size_t count  = buffer_size;    
-    std::size_t size   = count *sizeof (float);
+    std::size_t count   = buffer_size;    
+    std::size_t size    = count *sizeof (float);
 	std::size_t kerSize = kernelSize*sizeof(float);
 
     // Allocate space for output data from GPU on the host
@@ -450,18 +453,18 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     }  
 
     // Allocate space (buffers) for output data on the device 
-    cl::Buffer NZ_Values        (context,CL_MEM_READ_WRITE,count *sizeof (float));
+    cl::Buffer NZ_Values        (context,CL_MEM_READ_WRITE,count * sizeof (float));
     cl::Buffer NZ_Columns       (context,CL_MEM_READ_WRITE,count * sizeof(cl_int));
 	cl::Buffer GPU_Kernel       (context,CL_MEM_READ_WRITE,kerSize);
 
     // Initialize host memory to 0 (0 being useful to debug if errors in V)
-    memset(h_GpuV.data(), 0, count *sizeof (float));
+    memset(h_GpuV.data(), 0, count * sizeof (float));
     memset(h_GpuC.data(), 0, count * sizeof(cl_uint));
 
     // Initialize device memory
-    que.enqueueWriteBuffer(NZ_Values,       true, 0, count *sizeof (float),  h_GpuV.data(),                 NULL,   &event_write3);
-    que.enqueueWriteBuffer(NZ_Columns,      true, 0, count * sizeof(cl_uint), h_GpuC.data(),                NULL,   &event_write4);
-	que.enqueueWriteBuffer(GPU_Kernel,      true, 0, kerSize, vkernel.data(),                               NULL,   &event_write5);
+    que.enqueueWriteBuffer(NZ_Values,       true, 0, count *sizeof (float),  h_GpuV.data(),   NULL,   &event_write3);
+    que.enqueueWriteBuffer(NZ_Columns,      true, 0, count * sizeof(cl_uint), h_GpuC.data(),  NULL,   &event_write4);
+	que.enqueueWriteBuffer(GPU_Kernel,      true, 0, kerSize, vkernel.data(),                 NULL,   &event_write5);
 
     // Wait until all write events complete
     event_write3.wait();
@@ -473,7 +476,7 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 
     // Set kernel arguments as per required order of semantics
     SuperAwesome_H_kernel.setArg<cl::Buffer>(0,GPU_Kernel);
-    SuperAwesome_H_kernel.setArg<cl::Buffer>(1,NZ_Row_Offset);
+    SuperAwesome_H_kernel.setArg<cl::Buffer>(1,NZ_Row_Pointer);
     SuperAwesome_H_kernel.setArg<cl::Buffer>(2,NZ_Values);   
     SuperAwesome_H_kernel.setArg<cl::Buffer>(3,NZ_Columns);
     SuperAwesome_H_kernel.setArg<cl_int>    (4,kernel.rows);
@@ -481,6 +484,9 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 
     // Launch the kernel
     que.enqueueNDRangeKernel(SuperAwesome_H_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, &event_kernel2);
+
+    // Wait until kernel1 is complete
+    event_kernel2.wait();
 
     // TODO remove later during delivery - Read into buffers to print
     que.enqueueReadBuffer(NZ_Values,  true, 0, count *sizeof (float),   h_GpuV.data(),  NULL, NULL);
@@ -552,45 +558,6 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     memset(test_values3.data(), 0, (dim_dstvec + 1) * sizeof(cl_uint));
     que.enqueueReadBuffer(_Hmatrix_Row_pointer,  true, 0, (dim_dstvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL);
 
-/* TESTING MULTIPLICATION START CODE - To be moved to ComposeSystemMatrix() */
-    
-    // Setup Identity matrix for testing Multiplication
-    // Setup CPU matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_Imatrix(dim_dstvec);
-
-    // Copy data to CPU matrix - Sequential and time consuming
-    for (unsigned int i = 0; i < dim_dstvec; i++)
-    {
-        cpu_sparse_Imatrix[i][i] = 1;
-    }
-    //cpu_sparse_Imatrix[0][1] = 1;
-    //cpu_sparse_Imatrix[1][2] = 1;
-    //cpu_sparse_Imatrix[2][3] = 1;
-
-    // Create ViennaCl compressed Identity matrix for testing
-    viennacl::compressed_matrix<float> gpu_sparse_Imatrix(dim_dstvec, dim_dstvec);
-
-    // Copy Identity matrix from CPU to device memory
-    copy(cpu_sparse_Imatrix, gpu_sparse_Imatrix );
-
-    // Create ViennaCl compressed Result matrix for testing 
-    viennacl::compressed_matrix<float> gpu_sparse_Rmatrix(dim_dstvec, dim_dstvec);
-
-    // ViennaCL sparse matrix- sparse matrix product
-    //gpu_sparse_Rmatrix = viennacl::linalg::prod(_Hmatrix, gpu_sparse_Imatrix);
-
-    // Setup CPU Result matrix
-    //std::vector< std::map< unsigned int, float> > cpu_sparse_Rmatrix(dim_dstvec);
-
-    //Copy from returned device to host memory
-    //copy(gpu_sparse_Rmatrix, cpu_sparse_Rmatrix );
-
-    // Setup CPU matrix
-    std::vector< std::map< unsigned int, float> > cpu_sparse_hmatrix(dim_dstvec);
-
-    //Copy viennal to CPU matrix
-    copy(_Hmatrix, cpu_sparse_hmatrix );
-
     /* -------------------------------------- DEBUG INFO -------------------------------------- */   
 
     /* TIMING ANALYSIS START */
@@ -628,56 +595,24 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
     /* PRINT MATRIX */
-    
+    /*
     int k = 0;
     for (int i = 0; i < count; i++)
     {
-        std::cout << "(" << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "--> ; ( " << test_values2[i]  <<")" << " ---> " << test_values1[i] << "\n";
+        std::cout << "For input i" << i << "(" << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "--> ; ( " << test_values2[i]  <<")" << " ---> " << test_values1[i] << "\n";
         //std::cout << "(" << h_GpuR[i] << ", " << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "\t";
 
-        k++;
-        if (k == kernel.cols * kernel.rows )
-        {
-            std::cout << "\n";
-            k=0;
-        }
     }
-
-    std::cout << "_Hmatrix no of rows " << _Hmatrix.size1() << "\n";
-    std::cout << "_Hmatrix no of cols " << _Hmatrix.size2() << "\n";
-    std::cout << "_Hmatrix no of nnz "  << _Hmatrix.nnz() << "\n";
-
-    std::cout << "gpu_sparse_Imatrix no of rows " << gpu_sparse_Imatrix.size1() << "\n";
-    std::cout << "gpu_sparse_Imatrix no of cols " << gpu_sparse_Imatrix.size2() << "\n";
-    std::cout << "gpu_sparse_Imatrix no of nnz "  << gpu_sparse_Imatrix.nnz() << "\n";
-
-    std::cout << "gpu_sparse_Rmatrix no of rows " << gpu_sparse_Rmatrix.size1() << "\n";
-    std::cout << "gpu_sparse_Rmatrix no of cols " << gpu_sparse_Rmatrix.size2() << "\n";
-    std::cout << "gpu_sparse_Rmatrix no of nnz "  << gpu_sparse_Rmatrix.nnz() << "\n";
-
-    //Print multiplication result
-    /*
-    int it_count = 0;
-    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_sparse_hmatrix.begin(); it != cpu_sparse_hmatrix.end(); ++it)
-    {
-        for(auto it1=it->begin(); it1!=it->end(); ++it1)
-        {
-            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << std::endl; 
-        }
-        it_count++;
-    }
-  */
 
     for (int i = 0; i < dim_dstvec+1; i++)
     {
         std::cout << "i is :" << i << " ---> Row Pointer values from (" << h_GpuRp[i] << ")  ---> ViennaCl Matrix values in RowPointer " << test_values3[i] << "\n";
     }
-  
 
     /*
     for (int k=0; k<_Hmatrix.outerSize(); ++k)
     {    
-        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Mmatrix,k); it; ++it)
+        for (Eigen::SparseMatrix<float,Eigen::RowMajor, int>::InnerIterator it(_Hmatrix,k); it; ++it)
         {
             std::cout <<   "  (" << it.row() << "," << it.col() << ")--" << it.value();
         }
@@ -697,41 +632,64 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Hmatrix(cv::Mat & Dest, const cv
 Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY)
 {
     // For timimg Analysis
-    cl::Event event_kernel;
-    cl::Event event_read1;
-    cl::Event event_read2;
-    cl::Event event_read3;
+    cl::Event event_kernel1;
     cl::Event event_write1;
     cl::Event event_write2;
     cl::Event event_write3;
+    cl::Event event_kernel2;
+    cl::Event event_copy1;
+    cl::Event event_copy2;
+    cl::Event event_copy3;
 
     // Parameters to compute total buffer size to be allocated to V, C and R buffers
-	int dim_dstvec      = Dest.rows * Dest.cols;
-    std::size_t wgSize  = 16;
-    std::size_t count   = Dest.rows * Dest.cols * 4;
-    std::size_t size    = count *sizeof (float);
+	std::size_t dim_dstvec  = Dest.rows * Dest.cols;
+    std::size_t wgSize      = 16;
+    std::size_t count       = Dest.rows * Dest.cols * 4;
+    std::size_t size        = count *sizeof (float);
+    uint buffer_size        = 0;
 
-	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _Mmatrix(dim_dstvec, dim_dstvec);
+	Eigen::SparseMatrix<float, Eigen::RowMajor, int> _EMmatrix(dim_dstvec, dim_dstvec);
 
-    // Create host memory
-    std::vector<float>  h_GpuV (count);
-    std::vector<int>    h_GpuC (count);
-    std::vector<int>    h_GpuR (count);
+    // Allocate space for output data from GPU on the host
+    std::vector<float>      h_GpuV (count);
+    std::vector<cl_uint>    h_GpuC (count);
+    std::vector<cl_uint>    h_GpuRp (count);
    
-    // Initilaization of host memory
-    memset(h_GpuR.data(), 0, size);
-    memset(h_GpuV.data(), 0, size);
-    memset(h_GpuC.data(), 0, size);
+    // Allocate space (buffers) for output data on the device 
+    cl::Buffer NZ_Values        (context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_Columns       (context,CL_MEM_READ_WRITE,size);
+    cl::Buffer NZ_Row_Pointer   (context,CL_MEM_READ_WRITE,size);
 
-    // Create device memory 
-    cl::Buffer NZ_Rows(context,CL_MEM_READ_WRITE,size);
-    cl::Buffer NZ_values(context,CL_MEM_READ_WRITE,size);
-    cl::Buffer NZ_Columns(context,CL_MEM_READ_WRITE,size);
+    // Initialize host memory to 0 (0 being useful to debug if errors in V)
+    memset(h_GpuRp.data(),  0, size);
+    memset(h_GpuV.data(),   0, size);
+    memset(h_GpuC.data(),   0, size);
 
     // Copy from host to device memory
-	que.enqueueWriteBuffer(NZ_Rows,     true, 0, size, h_GpuR.data(), NULL, &event_write1);
-    que.enqueueWriteBuffer(NZ_values,   true, 0, size, h_GpuV.data(), NULL, &event_write2);
-    que.enqueueWriteBuffer(NZ_Columns,  true, 0, size, h_GpuC.data(), NULL, &event_write3);
+    que.enqueueWriteBuffer(NZ_Values,       true, 0, count *sizeof (float), h_GpuV.data(),  NULL, &event_write1);
+    que.enqueueWriteBuffer(NZ_Columns,      true, 0, count *sizeof (cl_uint), h_GpuC.data(),  NULL, &event_write2);
+	que.enqueueWriteBuffer(NZ_Row_Pointer,  true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(), NULL, &event_write3);
+
+    // Wait until all write events complete
+    event_write1.wait();
+    event_write2.wait();
+    event_write3.wait();
+
+    // New kernel object for computation of each matrix
+	cl::Kernel SuperAwesome_M_Row_Kernel(program, "SuperAwesome_M_Row_Pointer");
+
+    // Kernel1 arguments
+    SuperAwesome_M_Row_Kernel.setArg<cl::Buffer>    (0, NZ_Row_Pointer);
+
+    // Launch the kernel1
+    que.enqueueNDRangeKernel(SuperAwesome_M_Row_Kernel, 0, cl::NDRange((Dest.rows * Dest.cols) + 1 ), cl::NDRange(wgSize * wgSize), NULL, &event_kernel1);
+
+    // Wait until kernel1 is complete
+    event_kernel1.wait();
+
+    // TODO remove later during delivery - Read into buffers to print
+    // Read into buffer to print
+    que.enqueueReadBuffer(NZ_Row_Pointer, true, 0, (dim_dstvec + 1) *sizeof (cl_uint), h_GpuRp.data(),NULL, NULL);
 
     // New kernel object for computation of each matrix
 	cl::Kernel SuperAwesome_M_kernel(program, "SuperAwesome_M_Matrix");
@@ -739,82 +697,167 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     //kernel arguments
     SuperAwesome_M_kernel.setArg<cl_float>  (0, deltaX); 
     SuperAwesome_M_kernel.setArg<cl_float>  (1, deltaY);
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(2, NZ_Rows);
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(3, NZ_values);    
-    SuperAwesome_M_kernel.setArg<cl::Buffer>(4, NZ_Columns);
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(2, NZ_Values);    
+    SuperAwesome_M_kernel.setArg<cl::Buffer>(3, NZ_Columns);
 
     //launch the kernel
-    que.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, &event_kernel);
+    que.enqueueNDRangeKernel(SuperAwesome_M_kernel, 0, cl::NDRange(Dest.rows, Dest.cols), cl::NDRange(wgSize, wgSize), NULL, &event_kernel2);
 
-    que.enqueueReadBuffer(NZ_Rows,      true, 0, size, h_GpuR.data(), NULL, &event_read1);
-    que.enqueueReadBuffer(NZ_values,    true, 0, size, h_GpuV.data(), NULL, &event_read2);
-    que.enqueueReadBuffer(NZ_Columns,   true, 0, size, h_GpuC.data(), NULL, &event_read3);
+    // Wait until kernel1 is complete
+    event_kernel2.wait();
 
-    /* Compute Eigen from Triple */
+    // TODO To remove
+    que.enqueueReadBuffer(NZ_Values,        true, 0, count *sizeof (float), h_GpuV.data(),   NULL, NULL);
+    que.enqueueReadBuffer(NZ_Columns,       true, 0, count *sizeof (cl_uint), h_GpuC.data(), NULL, NULL);
 
-    // CPU computation time for Triplet
-	Core::TimeSpan time_trip1 = Core::getCurrentTime();
-
-    typedef Eigen::Triplet<float> T;
-    std::vector<T> tripletList;
-    tripletList.reserve(count);
-    int k;
-
-    for(k=0; k< count; k++ )
+    // Compute the rowpointer 
+    for (int n = 0; n <= dim_dstvec; n++)
     {
-        // Put the values on the stack        
-        tripletList.push_back(T(h_GpuR[k],h_GpuC[k],h_GpuV[k])); 
+        buffer_size += h_GpuRp[n];
+        h_GpuRp[n] = buffer_size;  
+        std::cout << "h_GpuRp Offset " << n << " is : " << h_GpuRp[n] << "\n";  // TODO  To remove
+    }
+    std::cout << "buffer_size for Offset " << buffer_size << "\n";  // TODO To remove
+
+    // Initialise the compressed D matrix
+    viennacl::compressed_matrix<float> _Mmatrix(dim_dstvec, dim_dstvec, count);
+
+    // Get handles of the compressed D matrix
+    cl_int error;
+    cl_mem cValues = _Mmatrix.handle().opencl_handle().get();
+    error = clRetainMemObject (cValues);
+    if (error != CL_SUCCESS)
+    {
+        std::cout << "Error when getting handle for _Mmatrix.handle().opencl_handle().get(). Error code " << error << "\n";
+        cl::errorHandler (error, "clRetainMemObject");
+    }
+    cl::Buffer _Mmatrix_Values (cValues);
+
+    cl_mem cCol_indices = _Mmatrix.handle2().opencl_handle().get();
+    error = clRetainMemObject (cCol_indices);
+    if (error != CL_SUCCESS)
+    {
+        std::cout << "Error when getting handle for _Mmatrix.handle2().opencl_handle().get(). Error code " << error << "\n";
+        cl::errorHandler (error, "clRetainMemObject");
+    }
+    cl::Buffer _Mmatrix_Col_indices (cCol_indices);
+
+    cl_mem cRow_pointer = _Mmatrix.handle1().opencl_handle().get();
+    error = clRetainMemObject (cRow_pointer);
+    if (error != CL_SUCCESS)
+    {
+        std::cout << "Error when getting handle for _Mmatrix.handle1().opencl_handle().get(). Error code " << error << "\n";
+        cl::errorHandler (error, "clRetainMemObject");
+    }
+    cl::Buffer _Mmatrix_Row_pointer (cRow_pointer);
+
+    // Read values from host to GPU
+    cl_int copyh1  =  que.enqueueCopyBuffer(NZ_Values,        _Mmatrix_Values,      0, 0, count * sizeof(float),              NULL, &event_copy1);
+    cl_int copyh2  =  que.enqueueCopyBuffer(NZ_Columns,       _Mmatrix_Col_indices, 0, 0, count * sizeof(cl_uint),            NULL, &event_copy2);
+    cl_int copyh3  =  que.enqueueCopyBuffer(NZ_Row_Pointer,   _Mmatrix_Row_pointer, 0, 0, (dim_dstvec + 1) * sizeof(cl_uint), NULL, &event_copy3);
+
+    // Wait until all copy and writes events complete
+    event_copy1.wait();
+    event_copy2.wait();
+    event_copy3.wait();
+
+    // DEBUG CODE START 
+    // TODO Test code to remove
+    if(copyh1 == CL_SUCCESS)
+        std::cout << "copyh1 value " << copyh1 << "\n";
+
+    if(copyh2 == CL_SUCCESS)
+        std::cout << "copyh2 value " << copyh2 << "\n";
+
+    if(copyh3 == CL_SUCCESS)
+        std::cout << "copyh3 value " << copyh3 << "\n";
+
+    //TODO Test Vector
+    std::vector<float> test_values1 (count);
+    memset(test_values1.data(), 0, count * sizeof(float));
+    que.enqueueReadBuffer(_Mmatrix_Values,  true, 0, count * sizeof(float), test_values1.data(), NULL, NULL);
+
+    std::vector<unsigned int> test_values2 (count);
+    memset(test_values2.data(), 0, count * sizeof(cl_uint));
+    que.enqueueReadBuffer(_Mmatrix_Col_indices,  true, 0, count * sizeof(cl_uint), test_values2.data(), NULL, NULL);
+
+    std::vector<unsigned int> test_values3 (count);
+    memset(test_values3.data(), 0, (dim_dstvec + 1) * sizeof(cl_uint));
+    que.enqueueReadBuffer(_Mmatrix_Row_pointer,  true, 0, (dim_dstvec + 1) * sizeof(cl_uint), test_values3.data(), NULL, NULL);
+
+   /* TESTING MULTIPLICATION START CODE - To be moved to ComposeSystemMatrix() */
+
+    // Setup Identity matrix for testing Multiplication
+    // Setup CPU matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_Imatrix(dim_dstvec);
+
+    // Copy data to CPU matrix - Sequential and time consuming
+    for (unsigned int i = 0; i < dim_dstvec; i++)
+    {
+        cpu_sparse_Imatrix[i][i] = 1;
     }
 
-    // Populate the Sparse MAtrix
-    _Mmatrix.setFromTriplets(tripletList.begin(), tripletList.end());
+    // Create ViennaCl compressed Identity matrix for testing
+    viennacl::compressed_matrix<float> gpu_sparse_Imatrix(dim_dstvec, dim_dstvec);
 
-	Core::TimeSpan time_trip2 = Core::getCurrentTime();
+    // Copy Identity matrix from CPU to device memory
+    copy(cpu_sparse_Imatrix, gpu_sparse_Imatrix );
 
-    // Total time consumed by Eigen setFromTriplets function
-    Core::TimeSpan timem1 = time_trip2 - time_trip1;
+    // Create ViennaCl compressed Result matrix for testing 
+    viennacl::compressed_matrix<float> gpu_sparse_Rmatrix(dim_dstvec, dim_dstvec);
+
+    // ViennaCL sparse matrix- sparse matrix product
+    gpu_sparse_Rmatrix = viennacl::linalg::prod(_Mmatrix, gpu_sparse_Imatrix);
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_Rmatrix(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(gpu_sparse_Rmatrix, cpu_sparse_Rmatrix );
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_sparse_mmatrix(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(_Mmatrix, cpu_sparse_mmatrix );
 
     /* -------------------------------------- DEBUG INFO -------------------------------------- */   
 
-    /* TIMING ANALYSIS START */
-
     // Timing Analysis
-	Core::TimeSpan time1    = OpenCL::getElapsedTime(event_kernel);
-	Core::TimeSpan time2    = OpenCL::getElapsedTime(event_read1);
-	Core::TimeSpan time3    = OpenCL::getElapsedTime(event_read2);
-	Core::TimeSpan time4    = OpenCL::getElapsedTime(event_read3);
-	Core::TimeSpan time5    = OpenCL::getElapsedTime(event_write1);
-	Core::TimeSpan time6    = OpenCL::getElapsedTime(event_write2);
-	Core::TimeSpan time7    = OpenCL::getElapsedTime(event_write3);
 
-    std::cout <<"Kernel time for Val, Columns and Row computation       : " << time1 << std::endl;
-    std::cout <<"Read time from kernel to compressed matrix Values      : " << time2 << std::endl;
-    std::cout <<"Read time from kernel to compressed matrix Columns     : " << time3 << std::endl;
-    std::cout <<"Read time from kernel to compressed matrix RowPointers : " << time4 << std::endl;
-    std::cout <<"Write and que time for Values Buffer                   : " << time5 << std::endl;
-    std::cout <<"Write and que time for Columns Buffer                  : " << time6 << std::endl;
-    std::cout <<"Write and que time for Row Buffer                      : " << time7 << std::endl;
-    std::cout <<"Time taken to execute Triplet                          : " << timem1 << std::endl;
+	Core::TimeSpan time1    = OpenCL::getElapsedTime(event_kernel1);
+	Core::TimeSpan time2    = OpenCL::getElapsedTime(event_write1);
+	Core::TimeSpan time3    = OpenCL::getElapsedTime(event_write2);
+	Core::TimeSpan time4    = OpenCL::getElapsedTime(event_write3);
+	Core::TimeSpan time5    = OpenCL::getElapsedTime(event_kernel2);
+	Core::TimeSpan time6    = OpenCL::getElapsedTime(event_copy1);
+	Core::TimeSpan time7    = OpenCL::getElapsedTime(event_copy2);
+	Core::TimeSpan time8    = OpenCL::getElapsedTime(event_copy3);
 
-	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7+timem1;
+    std::cout <<"Kernel time for Val, Columns computation               : " << time1 << std::endl;
+    std::cout <<"Write and que time for Row Pointer Buffer              : " << time2 << std::endl;
+    std::cout <<"Write and que time for Values Buffer                   : " << time3 << std::endl;
+    std::cout <<"Write and que time for Columns Buffer                  : " << time4 << std::endl;
+    std::cout <<"Kernel time for Row Pointer                            : " << time5 << std::endl;
+    std::cout <<"Copy time from kernel to compressed matrix Values      : " << time6 << std::endl;
+    std::cout <<"Copy time from kernel to compressed matrix Columns     : " << time7 << std::endl;
+    std::cout <<"Copy time from kernel to compressed matrix RowPointers : " << time8 << std::endl;
+
+	Core::TimeSpan timeGPU = time1+time2+time3+time4+time5+time6+time7;
 
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
-    std::cout <<"Total Time for computation of D matrix on the GPU      : "<< timeGPU << std::endl;
+    std::cout <<"Total Time for computation of H matrix on the GPU      : "<< timeGPU << std::endl;
     std::cout <<"---------------------------------------------------------------------------------" << std::endl;
 
     /* PRINT MATRIX */
-    /*
+
+    int k = 0;
     for (int i = 0; i < count; i++)
     {
-        std::cout << "(" << h_GpuR[i] << "," << h_GpuC[i] <<")" << "-->" << h_GpuV[i];
-        k++;
-        if (k==Dest.cols)
-        {
-            std::cout << "\n";
-            k=0;
-        }
-    } 
-    */
+        std::cout << "For input i" << i << "(" << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "--> ; ( " << test_values2[i]  <<")" << " ---> " << test_values1[i] << "\n";
+        //std::cout << "(" << h_GpuR[i] << ", " << h_GpuC[i] <<")" << "-->" << h_GpuV[i] << "\t";
+
+    }
 
     /*
     for (int k=0; k<_Mmatrix.outerSize(); ++k)
@@ -828,7 +871,23 @@ Eigen::SparseMatrix<float, Eigen::RowMajor,int> Mmatrix(cv::Mat &Dest, float del
     }
     */
 
-	return _Mmatrix;
+    for (int i = 0; i < dim_dstvec+1; i++)
+    {
+        std::cout << "i is :" << i << " ---> Row Pointer values from (" << h_GpuRp[i] << ")  ---> ViennaCl Matrix values in RowPointer " << test_values3[i] << "\n";
+    }
+
+    //Print multiplication result
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_sparse_Rmatrix.begin(); it != cpu_sparse_Rmatrix.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            std::cout << "( " << it_count << " , " << it1->first << ")" << " --> " << it1->second << std::endl; 
+        }
+        it_count++;
+    }
+
+	return _EMmatrix;
 }
 
 

@@ -408,7 +408,7 @@ Eigen::SparseMatrix<float,Eigen::RowMajor, int> ComposeSystemMatrix(cv::Mat& Src
 
     */
 
-    /* 
+     /*
     ofstream myfile1;
     myfile1.open ("DHFmatrixCPU.txt");
 
@@ -597,10 +597,10 @@ int main(int argc, char** argv)
             Src[i] = cv::imread("../Images/Cameraman/LR"+ boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
 
             // 5 pixel X 5 pixel sample test image for testing
-            //Src[i] = (Mat_<float>(5,5) << 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1);
+            // Src[i] = (Mat_<float>(5,5) << 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1);
 
             // 3 pixel X 3 pixel sample test image for testing
-            //Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
+            // Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
 
 	        if(! Src[i].data)
                 std::cerr<<"No files can be found!"<<std::endl;

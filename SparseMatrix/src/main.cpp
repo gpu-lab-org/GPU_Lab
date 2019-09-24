@@ -308,13 +308,7 @@ viennacl::compressed_matrix<float> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfa
 
     /* PRINT MATRIX */
     /*
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_DMat(dim_srcvec);
-
-    //Copy from returned device to host memory
-    copy(_Dmatrix, cpu_DMat );
-
-    // Print on console
+    // Print on conole
     int it_count = 0;
     for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_DMat.begin(); it != cpu_DMat.end(); ++it)
     {
@@ -325,8 +319,16 @@ viennacl::compressed_matrix<float> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfa
         std::cout << "\n";
         it_count++;
     }
+    */
 
+    /*
     // Print in file
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_DMat(dim_srcvec);
+
+    //Copy from returned device to host memory
+    copy(_Dmatrix, cpu_DMat );
 
     ofstream myfile1;
     myfile1.open ("DmatrixGPU.txt");
@@ -563,11 +565,6 @@ viennacl::compressed_matrix<float> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel
 
     /* PRINT MATRIX */
     /*
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_HMat(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(_Hmatrix, cpu_HMat );
 
     // Print on console
     int it_count = 0;
@@ -580,8 +577,16 @@ viennacl::compressed_matrix<float> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel
         std::cout << "\n";
         it_count++;
     }
+    */
 
+    /*
     // Print in file
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_HMat(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(_Hmatrix, cpu_HMat );
+
     ofstream myfile1;
     myfile1.open ("HmatrixGPU.txt");
     
@@ -600,8 +605,8 @@ viennacl::compressed_matrix<float> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel
     }
 
     myfile1.close();
+    */
 
-*/
 	return _Hmatrix;
 }
 
@@ -791,12 +796,6 @@ viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float de
 
     /* PRINT MATRIX*/
     /*
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_MMat(dim_dstvec);
-
-    //Copy from returned device to host memory
-    copy(_Mmatrix, cpu_MMat );
-
     // Print on console
     int it_count = 0;
     for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_MMat.begin(); it != cpu_MMat.end(); ++it)
@@ -808,8 +807,17 @@ viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float de
         std::cout << "\n";
         it_count++;
     }
+    */
 
+    /*
     // Print in file
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_MMat(dim_dstvec);
+
+    //Copy from returned device to host memory
+    copy(_Mmatrix, cpu_MMat );
+
     ofstream myfile1;
     myfile1.open ("MmatrixGPU.txt");
     
@@ -828,8 +836,8 @@ viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float de
     }
 
     myfile1.close();
+    
     */
-
 	return _Mmatrix;
 }
 
@@ -839,7 +847,7 @@ viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float de
 // COMPOSE SYSTEM MATRIX FUNC
 //
 //=======================================================================
-void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel)
+viennacl::compressed_matrix<float> ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel)
 {
 
 	int dim_srcvec = Src.rows * Src.cols;
@@ -875,6 +883,10 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
 	Core::TimeSpan time5 = Core::getCurrentTime();
 
 
+    /* DEBUG INFO */
+    /*
+    // Timing Analysis
+    
     std::cout << std::endl << std::endl << std::endl;
 
 	Core::TimeSpan timet1 = time2 - time1;
@@ -896,12 +908,6 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
 	std::cout << "Total time taken to execute _DHFmatrix - " << timet << " seconds" << std::endl << std::endl;
     std::cout << "-----------------------------------------------------------------" << std::endl << std::endl;
 
-    std::cout << std::endl << std::endl << std::endl;
-    std::cout <<"---------------------------------------------------------------------------------" << std::endl;
-    std::cout <<"                               DHF Computation complete                          " << std::endl;
-    std::cout <<"---------------------------------------------------------------------------------" << std::endl << std::endl << std::endl;
-
-    /*
     std::ofstream log1("Dmatrix_time.txt", std::ios_base::app | std::ios_base::out);
     log1 << timet1 << std::endl;
 
@@ -916,14 +922,16 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
 
     std::ofstream log5("DHFmatrix_time.txt", std::ios_base::app | std::ios_base::out);
     log5 << timet << std::endl;
+
+    std::cout << std::endl << std::endl << std::endl;
+    std::cout <<"---------------------------------------------------------------------------------" << std::endl;
+    std::cout <<"                               DHF Computation complete                          " << std::endl;
+    std::cout <<"---------------------------------------------------------------------------------" << std::endl << std::endl << std::endl;
     
+    */
+
+    /*
     // Print on console
-
-    // Setup CPU Result matrix
-    std::vector< std::map< unsigned int, float> > cpu_DHF(dim_srcvec);
-
-    //Copy from returned device to host memory
-    copy(_DHF, cpu_DHF );
 
     int it_count = 0;
     for(std::vector< std::map< unsigned int, float> >::iterator it = _DHF.begin(); it != _DHF.end(); ++it)
@@ -939,6 +947,13 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
 
     /*
     // Print in file
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_DHF(dim_srcvec);
+
+    //Copy from returned device to host memory
+    copy(_DHF, cpu_DHF );
+
     ofstream myfile1;
     myfile1.open ("DHFmatrixGPU.txt");
     
@@ -956,7 +971,10 @@ void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, i
         it_count++;
     }
     myfile1.close();
+    
     */
+
+    return _DHF;
 }
 
 void Gaussiankernel(cv::Mat& dst)
@@ -985,7 +1003,40 @@ void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& mot
 	Shifts.x = motionVec[imgindex].at<float>(0,2)*rfactor;
 	Shifts.y = motionVec[imgindex].at<float>(1,2)*rfactor;
 
-	ComposeSystemMatrix(Src, Dest, Shifts, rfactor, kernel);
+	viennacl::compressed_matrix<float> A = ComposeSystemMatrix(Src, Dest, Shifts, rfactor, kernel);
+
+    /*
+    // Print A in file
+
+    // Number of rows in A
+    int dim_srcvec = Src.rows * Src.cols;
+    // Number of rows in A
+    int dim_dstvec = Dest.rows * Dest.cols;
+
+    // Setup CPU Result matrix
+    std::vector< std::map< unsigned int, float> > cpu_A(dim_srcvec);
+
+    //Copy from returned device to host memory
+    copy(A, cpu_A );
+
+    ofstream myfile1;
+    myfile1.open ("AmatrixGPU.txt");
+    
+    myfile1 << "-----------------------------------------------------------------------------------------" << std::endl;
+    myfile1 << "Printing A" << "\n";
+
+    int it_count = 0;
+    for(std::vector< std::map< unsigned int, float> >::iterator it = cpu_A.begin(); it != cpu_A.end(); ++it)
+    {
+        for(auto it1=it->begin(); it1!=it->end(); ++it1)
+        {
+            myfile1 << "  (" << it_count << "," << it1->first << ")--" << it1->second; 
+        }
+        myfile1 << "\n";
+        it_count++;
+    }
+    myfile1.close();
+    */
 
 }
 
@@ -1046,7 +1097,7 @@ int main(int argc, char** argv)
 
 	//********************************************************************
 
-    size_t image_count = 1;// M
+    size_t image_count = 4;// M
     int rfactor = 2;//magnification factor
     float psfWidth = 3;
 
@@ -1060,25 +1111,43 @@ int main(int argc, char** argv)
     std::vector<cv::Mat> motionvec;
     motionMat(motionvec, image_count, rfactor, true);
 
-    for (size_t i = 0;i < image_count;i++)
+    /*
+    // For performance analysis and plotting average computation times
+    for (size_t i = 0;i < 10; i++)
     {
-        Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
-   
-	    if(! Src[i].data)
-                std::cerr<<"No files can be found!"<<std::endl;
+    */
+        for (size_t i = 0;i < image_count;i++)
+        {
+            // 1000 pixel X 1000 pixel image            
+            //Src[i] = cv::imread("../Images/Test/LR_000" + boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
 
-        Src[i].convertTo(Src[i], CV_32F);
+            // 128 pixel X 128 pixel image            
+            Src[i] = cv::imread("../Images/Cameraman/LR"+ boost::lexical_cast<std::string> (i+1) + ".tif", CV_LOAD_IMAGE_ANYDEPTH);
+
+            // 5 pixel X 5 pixel sample test image for testing
+            // Src[i] = (Mat_<float>(5,5) << 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1);
+
+            // 3 pixel X 3 pixel sample test image for testing
+            // Src[i] = (Mat_<float>(3,3) << 10, 150, 67, 120, 34, 200, 0, 255, 50);
+       
+	        if(! Src[i].data)
+                    std::cerr<<"No files can be found!"<<std::endl;
+
+            Src[i].convertTo(Src[i], CV_32F);
 
 
-	    dest = cv::Mat(Src[0].rows * rfactor, Src[0].cols * rfactor, CV_16UC1);
-	    cv::resize(Src[0], dest, dest.size(), 0, 0, INTER_CUBIC);
+	        dest = cv::Mat(Src[0].rows * rfactor, Src[0].cols * rfactor, CV_16UC1);
+	        cv::resize(Src[0], dest, dest.size(), 0, 0, INTER_CUBIC);
 
-        /***** Generate Matrices A = DHF, inverse A = DHFT and B = DHF2, invere B = DHFT2 ******/
-        // Changed the corresponding function prototypes accordingly
-	    GenerateAT(Src[i], dest, i, motionvec, kernel, rfactor);
+            /***** Generate Matrices A = DHF, inverse A = DHFT and B = DHF2, invere B = DHFT2 ******/
+            // Changed the corresponding function prototypes accordingly
+	        GenerateAT(Src[i], dest, i, motionvec, kernel, rfactor);
 
-	    std::cout<<"Matrices of image "<<(i+1)<<" done."<<std::endl;
+	        std::cout<<"Matrices of image "<<(i+1)<<" done."<<std::endl;
+        }
+    /*
     }
+    */
 
     std::cout<<"CPU calculation is done."<<std::endl;
 

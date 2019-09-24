@@ -29,7 +29,7 @@ viennacl::compressed_matrix<float> Dmatrix(cv::Mat& Src, cv::Mat & Dest, int rfa
 viennacl::compressed_matrix<float> Hmatrix(cv::Mat & Dest, const cv::Mat& kernel);
 viennacl::compressed_matrix<float> Mmatrix(cv::Mat &Dest, float deltaX, float deltaY);
 void motionMat(std::vector<Mat>& motionVec, size_t image_count, size_t rfactor, bool clockwise);
-void ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel);
+viennacl::compressed_matrix<float> ComposeSystemMatrix(cv::Mat& Src, cv::Mat& Dest, const cv::Point2f delta, int rfactor, const cv::Mat& kernel);
 void Gaussiankernel(cv::Mat& dst);
 void GenerateAT(cv::Mat& Src, cv::Mat& Dest, int imgindex, std::vector<Mat>& motionVec, cv::Mat &kernel, size_t rfactor);
 
